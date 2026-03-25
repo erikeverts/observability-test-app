@@ -1,0 +1,135 @@
+package config
+
+import (
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type Config struct {
+	ServiceName string
+	ServicePort string
+
+	OTLPEndpoint string
+	OTLPProtocol string
+
+	GrafanaOTLPEndpoint string
+	GrafanaAPIToken     string
+
+	ProductServiceURL string
+	OrderServiceURL   string
+
+	ChaosErrorRoutes   map[string]float64
+	ChaosLatencyRoutes map[string]time.Duration
+
+	ChaosCPULoadEnabled bool
+	ChaosCPULoadPercent int
+
+	ChaosMemLoadEnabled bool
+	ChaosMemLoadMB      int
+
+	ChaosLogVolumeEnabled bool
+	ChaosLogRatePerSec    int
+	ChaosLogPattern       string
+}
+
+func Load() *Config {
+	return &Config{
+		ServiceName: getEnv("OTEL_SERVICE_NAME", "unknown"),
+		ServicePort: getEnv("SERVICE_PORT", "8080"),
+
+		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
+		OTLPProtocol: getEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc"),
+
+		GrafanaOTLPEndpoint: getEnv("GRAFANA_OTLP_ENDPOINT", ""),
+		GrafanaAPIToken:     getEnv("GRAFANA_API_TOKEN", ""),
+
+		ProductServiceURL: getEnv("PRODUCT_SERVICE_URL", "http://localhost:8081"),
+		OrderServiceURL:   getEnv("ORDER_SERVICE_URL", "http://localhost:8082"),
+
+		ChaosErrorRoutes:   parseErrorRoutes(getEnv("CHAOS_ERROR_ROUTES", "")),
+		ChaosLatencyRoutes: parseLatencyRoutes(getEnv("CHAOS_LATENCY_ROUTES", "")),
+
+		ChaosCPULoadEnabled: getBoolEnv("CHAOS_CPU_LOAD_ENABLED", false),
+		ChaosCPULoadPercent: getIntEnv("CHAOS_CPU_LOAD_PERCENT", 0),
+
+		ChaosMemLoadEnabled: getBoolEnv("CHAOS_MEM_LOAD_ENABLED", false),
+		ChaosMemLoadMB:      getIntEnv("CHAOS_MEM_LOAD_MB", 0),
+
+		ChaosLogVolumeEnabled: getBoolEnv("CHAOS_LOG_VOLUME_ENABLED", false),
+		ChaosLogRatePerSec:    getIntEnv("CHAOS_LOG_RATE_PER_SEC", 0),
+		ChaosLogPattern:       getEnv("CHAOS_LOG_PATTERN", "mixed"),
+	}
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func getBoolEnv(key string, fallback bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return fallback
+	}
+	return b
+}
+
+func getIntEnv(key string, fallback int) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return i
+}
+
+// parseErrorRoutes parses "/path:0.1,/other:0.25" into a map.
+func parseErrorRoutes(s string) map[string]float64 {
+	m := make(map[string]float64)
+	if s == "" {
+		return m
+	}
+	for _, entry := range strings.Split(s, ",") {
+		parts := strings.SplitN(strings.TrimSpace(entry), ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		rate, err := strconv.ParseFloat(parts[1], 64)
+		if err != nil {
+			continue
+		}
+		m[parts[0]] = rate
+	}
+	return m
+}
+
+// parseLatencyRoutes parses "/path:200ms,/other:1s" into a map.
+func parseLatencyRoutes(s string) map[string]time.Duration {
+	m := make(map[string]time.Duration)
+	if s == "" {
+		return m
+	}
+	for _, entry := range strings.Split(s, ",") {
+		parts := strings.SplitN(strings.TrimSpace(entry), ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		d, err := time.ParseDuration(parts[1])
+		if err != nil {
+			continue
+		}
+		m[parts[0]] = d
+	}
+	return m
+}
