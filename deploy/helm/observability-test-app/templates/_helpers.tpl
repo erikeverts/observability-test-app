@@ -30,6 +30,18 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
   value: {{ .Values.otel.endpoint | quote }}
 - name: OTEL_EXPORTER_OTLP_PROTOCOL
   value: {{ .Values.otel.protocol | quote }}
+- name: OTEL_EXPORTER_OTLP_INSECURE
+  value: {{ .Values.otel.insecure | quote }}
+{{- if .Values.otel.basicAuth.user }}
+- name: OTLP_BASIC_AUTH_USER
+  value: {{ .Values.otel.basicAuth.user | quote }}
+- name: OTLP_BASIC_AUTH_PASSWORD
+  value: {{ .Values.otel.basicAuth.password | quote }}
+{{- end }}
+{{- if .Values.otel.headers }}
+- name: OTEL_EXPORTER_OTLP_HEADERS
+  value: {{ .Values.otel.headers | quote }}
+{{- end }}
 {{- if .Values.grafana.endpoint }}
 - name: GRAFANA_OTLP_ENDPOINT
   value: {{ .Values.grafana.endpoint | quote }}

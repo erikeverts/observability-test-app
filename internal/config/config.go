@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"os"
 	"strconv"
 	"strings"
@@ -13,6 +14,8 @@ type Config struct {
 
 	OTLPEndpoint string
 	OTLPProtocol string
+	OTLPInsecure bool
+	OTLPHeaders  map[string]string
 
 	GrafanaOTLPEndpoint string
 	GrafanaAPIToken     string
@@ -41,6 +44,8 @@ func Load() *Config {
 
 		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
 		OTLPProtocol: getEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc"),
+		OTLPInsecure: getBoolEnv("OTEL_EXPORTER_OTLP_INSECURE", true),
+		OTLPHeaders:  buildOTLPHeaders(),
 
 		GrafanaOTLPEndpoint: getEnv("GRAFANA_OTLP_ENDPOINT", ""),
 		GrafanaAPIToken:     getEnv("GRAFANA_API_TOKEN", ""),
@@ -92,6 +97,37 @@ func getIntEnv(key string, fallback int) int {
 		return fallback
 	}
 	return i
+}
+
+// buildOTLPHeaders constructs headers from OTEL_EXPORTER_OTLP_HEADERS and/or
+// OTLP_BASIC_AUTH_USER + OTLP_BASIC_AUTH_PASSWORD. The basic auth pair takes
+// precedence over an Authorization header in OTEL_EXPORTER_OTLP_HEADERS.
+func buildOTLPHeaders() map[string]string {
+	headers := parseHeaders(os.Getenv("OTEL_EXPORTER_OTLP_HEADERS"))
+
+	user := os.Getenv("OTLP_BASIC_AUTH_USER")
+	pass := os.Getenv("OTLP_BASIC_AUTH_PASSWORD")
+	if user != "" {
+		encoded := base64.StdEncoding.EncodeToString([]byte(user + ":" + pass))
+		headers["Authorization"] = "Basic " + encoded
+	}
+	return headers
+}
+
+// parseHeaders parses "key=value,key2=value2" (OTEL spec format).
+func parseHeaders(s string) map[string]string {
+	m := make(map[string]string)
+	if s == "" {
+		return m
+	}
+	for _, entry := range strings.Split(s, ",") {
+		parts := strings.SplitN(strings.TrimSpace(entry), "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		m[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+	}
+	return m
 }
 
 // parseErrorRoutes parses "/path:0.1,/other:0.25" into a map.

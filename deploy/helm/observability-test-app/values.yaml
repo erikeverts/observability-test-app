@@ -6,6 +6,11 @@ image:
 otel:
   endpoint: "otel-collector:4317"
   protocol: "grpc"
+  insecure: true
+  basicAuth:
+    user: ""
+    password: ""
+  headers: ""
 
 grafana:
   endpoint: ""
