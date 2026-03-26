@@ -15,10 +15,12 @@ spec:
       labels:
         app: order
     spec:
+      serviceAccountName: {{ .Release.Name }}-order
       containers:
         - name: order
           image: {{ .Values.image.registry }}/order:{{ .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "app.securityContext" . | nindent 10 }}
           ports:
             - containerPort: {{ .Values.order.port }}
           env:
@@ -60,3 +62,11 @@ spec:
       protocol: TCP
   selector:
     app: order
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-order
+  labels:
+    app: order
+    {{- include "app.labels" . | nindent 4 }}
