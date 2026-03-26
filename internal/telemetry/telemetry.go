@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/erikeverts/observability-test-app/internal/config"
@@ -103,17 +104,30 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (*Telemetry, func(),
 	}, cleanup, nil
 }
 
+// normalizeEndpoint strips http:// or https:// from the endpoint and infers
+// the insecure flag from the scheme. The OTEL SDK WithEndpoint expects
+// host:port without a scheme.
+func normalizeEndpoint(ep string, fallbackInsecure bool) (string, bool) {
+	if strings.HasPrefix(ep, "https://") {
+		return strings.TrimPrefix(ep, "https://"), false
+	}
+	if strings.HasPrefix(ep, "http://") {
+		return strings.TrimPrefix(ep, "http://"), true
+	}
+	return ep, fallbackInsecure
+}
+
 // resolveExportOpts merges generic OTLP config with Grafana overlay.
 func resolveExportOpts(cfg *config.Config) exportOpts {
+	endpoint, insecure := normalizeEndpoint(cfg.OTLPEndpoint, cfg.OTLPInsecure)
 	opts := exportOpts{
-		endpoint: cfg.OTLPEndpoint,
+		endpoint: endpoint,
 		headers:  copyHeaders(cfg.OTLPHeaders),
-		insecure: cfg.OTLPInsecure,
+		insecure: insecure,
 	}
 
 	if cfg.GrafanaOTLPEndpoint != "" {
-		opts.endpoint = cfg.GrafanaOTLPEndpoint
-		opts.insecure = false
+		opts.endpoint, opts.insecure = normalizeEndpoint(cfg.GrafanaOTLPEndpoint, false)
 		if cfg.GrafanaAPIToken != "" {
 			encoded := base64.StdEncoding.EncodeToString(
 				[]byte(cfg.GrafanaAPIToken),
