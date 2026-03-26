@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        service: [gateway, product, order]
+        service: [gateway, product, order, dashboard]
     steps:
       - uses: actions/checkout@v4
 

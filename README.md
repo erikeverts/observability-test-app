@@ -7,11 +7,14 @@ An OpenTelemetry observability test/demo application with 3 Go microservices, co
 ```
 Client -> API Gateway (:8080) -> Order Service (:8082) -> Product Service (:8081)
                                -> Product Service (:8081)
+
+Chaos Dashboard (:8083) -> controls chaos on all services via /admin/chaos API
 ```
 
 - **API Gateway** - Proxies requests to backend services
 - **Product Service** - In-memory product catalog (5 seeded products)
 - **Order Service** - Creates orders, calls Product Service to validate items and calculate totals
+- **Chaos Dashboard** - Web UI for controlling chaos/fault injection across all services at runtime
 
 All services export traces, metrics, and logs via OTLP (gRPC or HTTP). Supports Grafana Cloud native OTLP export.
 
@@ -28,13 +31,17 @@ OTEL_SERVICE_NAME=order SERVICE_PORT=8082 go run ./cmd/order
 
 # Terminal 3: API Gateway
 OTEL_SERVICE_NAME=gateway SERVICE_PORT=8080 go run ./cmd/gateway
+
+# Terminal 4 (optional): Chaos Dashboard
+SERVICE_PORT=8083 go run ./cmd/dashboard
 ```
 
 Or use the Makefile:
 ```bash
-make run-product  # in terminal 1
-make run-order    # in terminal 2
-make run-gateway  # in terminal 3
+make run-product    # in terminal 1
+make run-order      # in terminal 2
+make run-gateway    # in terminal 3
+make run-dashboard  # in terminal 4 (optional)
 ```
 
 ### Test endpoints
@@ -87,6 +94,46 @@ All configuration is via environment variables:
 | `CHAOS_LOG_RATE_PER_SEC` | `0` | Log lines per second |
 | `CHAOS_LOG_PATTERN` | `mixed` | `info`, `warn`, `error`, or `mixed` |
 
+## Chaos Dashboard
+
+The chaos dashboard provides a web UI for controlling chaos/fault injection across all services at runtime. No restart required — changes take effect immediately.
+
+### Access locally
+
+```bash
+# Start the dashboard (after starting the other services)
+make run-dashboard
+# Open http://localhost:8083
+```
+
+### Access in Kubernetes
+
+```bash
+kubectl port-forward svc/<release-name>-dashboard 8083:8083
+# Open http://localhost:8083
+```
+
+### Features
+
+- **Per-service controls**: Configure error injection, latency injection, CPU/memory load, and log volume for each service independently
+- **Route-level granularity**: Set error rates and latency per HTTP path (e.g., `/products` at 50% error rate)
+- **Presets**: One-click scenarios — Reset All, Slow Responses, Error Storm, Noisy Logs, CPU Burn, Full Chaos
+- **Live state**: Dashboard reads current chaos config from each service on load
+
+### Runtime Chaos API
+
+Each service exposes admin endpoints for programmatic control:
+
+```bash
+# Get current chaos config
+curl http://localhost:8081/admin/chaos
+
+# Set chaos config
+curl -X PUT http://localhost:8081/admin/chaos \
+  -H "Content-Type: application/json" \
+  -d '{"error_routes":{"/products":0.5},"latency_routes":{"/products":"200ms"},"cpu_load":{"enabled":false,"percent":0},"mem_load":{"enabled":false,"mb":0},"log_volume":{"enabled":false,"rate_per_sec":0,"pattern":"mixed"}}'
+```
+
 ## Telemetry
 
 - **Traces**: Full distributed tracing across all 3 services with W3C TraceContext propagation. Custom spans on business logic operations.
@@ -133,7 +180,8 @@ helm install demo deploy/helm/observability-test-app \
 ```bash
 make build        # Build all binaries
 make test         # Run tests
-make docker-build # Build Docker images
-make helm-lint    # Lint Helm chart
-make clean        # Clean build artifacts
+make docker-build  # Build Docker images
+make helm-lint     # Lint Helm chart
+make run-dashboard # Run chaos dashboard locally
+make clean         # Clean build artifacts
 ```

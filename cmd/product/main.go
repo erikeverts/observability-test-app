@@ -47,6 +47,8 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
 	})
+	mux.HandleFunc("GET /admin/chaos", c.HandleGetConfig)
+	mux.HandleFunc("PUT /admin/chaos", c.HandleSetConfig)
 	mux.Handle("/", svc.Mux)
 
 	handler := c.Middleware(middleware.Wrap(mux, cfg.ServiceName))

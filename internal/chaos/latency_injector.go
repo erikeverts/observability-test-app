@@ -3,6 +3,7 @@ package chaos
 import (
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -10,6 +11,7 @@ import (
 )
 
 type LatencyInjector struct {
+	mu     sync.RWMutex
 	routes map[string]time.Duration
 }
 
@@ -17,12 +19,28 @@ func NewLatencyInjector(routes map[string]time.Duration) *LatencyInjector {
 	return &LatencyInjector{routes: routes}
 }
 
-func (l *LatencyInjector) Middleware(next http.Handler) http.Handler {
-	if len(l.routes) == 0 {
-		return next
+func (l *LatencyInjector) SetRoutes(routes map[string]time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.routes = routes
+}
+
+func (l *LatencyInjector) GetRoutes() map[string]time.Duration {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	cp := make(map[string]time.Duration, len(l.routes))
+	for k, v := range l.routes {
+		cp[k] = v
 	}
+	return cp
+}
+
+func (l *LatencyInjector) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		l.mu.RLock()
 		delay, ok := l.routes[r.URL.Path]
+		l.mu.RUnlock()
+
 		if !ok {
 			next.ServeHTTP(w, r)
 			return

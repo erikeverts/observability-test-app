@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f1117; color: #e0e0e0; }
+        header { background: #1a1d27; padding: 16px 24px; border-bottom: 1px solid #2a2d3a; display: flex; align-items: center; gap: 16px; }
+        header h1 { font-size: 20px; font-weight: 600; }
+        header .status { font-size: 13px; color: #888; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .presets { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+        .presets button { padding: 8px 16px; border: 1px solid #2a2d3a; border-radius: 6px; background: #1a1d27; color: #e0e0e0; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+        .presets button:hover { border-color: #4a8eff; color: #4a8eff; }
+        .presets button.danger { border-color: #e74c3c; color: #e74c3c; }
+        .presets button.danger:hover { background: #e74c3c; color: white; }
+        .services { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }
+        .service-card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 8px; overflow: hidden; }
+        .service-header { padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2d3a; }
+        .service-header h2 { font-size: 16px; font-weight: 600; text-transform: capitalize; }
+        .service-header .badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; }
+        .badge.ok { background: #1a3a2a; color: #4ade80; }
+        .badge.err { background: #3a1a1a; color: #f87171; }
+        .badge.loading { background: #2a2a1a; color: #facc15; }
+        .section { padding: 14px 18px; border-bottom: 1px solid #1f2230; }
+        .section:last-child { border-bottom: none; }
+        .section h3 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; margin-bottom: 10px; }
+        .route-list { display: flex; flex-direction: column; gap: 6px; }
+        .route-row { display: flex; align-items: center; gap: 8px; }
+        .route-row input[type="text"] { flex: 1; min-width: 80px; }
+        .route-row input[type="number"] { width: 70px; }
+        .route-row button.remove { background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 16px; padding: 2px 6px; }
+        .add-route { font-size: 12px; color: #4a8eff; cursor: pointer; background: none; border: none; margin-top: 4px; }
+        .add-route:hover { text-decoration: underline; }
+        input[type="text"], input[type="number"] { background: #0f1117; border: 1px solid #2a2d3a; border-radius: 4px; color: #e0e0e0; padding: 6px 10px; font-size: 13px; }
+        input:focus { outline: none; border-color: #4a8eff; }
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+        .toggle-row label { font-size: 13px; }
+        .toggle { position: relative; width: 40px; height: 22px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle .slider { position: absolute; inset: 0; background: #2a2d3a; border-radius: 11px; cursor: pointer; transition: 0.2s; }
+        .toggle .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; bottom: 3px; background: #888; border-radius: 50%; transition: 0.2s; }
+        .toggle input:checked + .slider { background: #4a8eff; }
+        .toggle input:checked + .slider::before { transform: translateX(18px); background: white; }
+        .field-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+        .field-row label { font-size: 13px; min-width: 70px; }
+        .field-row input, .field-row select { flex: 1; }
+        select { background: #0f1117; border: 1px solid #2a2d3a; border-radius: 4px; color: #e0e0e0; padding: 6px 10px; font-size: 13px; }
+        .actions { padding: 14px 18px; display: flex; gap: 8px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+        .btn-primary { background: #4a8eff; color: white; }
+        .btn-primary:hover { background: #3a7eff; }
+        .btn-secondary { background: #2a2d3a; color: #e0e0e0; }
+        .btn-secondary:hover { background: #3a3d4a; }
+        .toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 6px; font-size: 13px; z-index: 100; animation: fadein 0.3s; }
+        .toast.success { background: #1a3a2a; color: #4ade80; border: 1px solid #2a5a3a; }
+        .toast.error { background: #3a1a1a; color: #f87171; border: 1px solid #5a2a2a; }
+        @keyframes fadein { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Chaos Dashboard</h1>
+        <span class="status" id="status">Loading services...</span>
+    </header>
+    <div class="container">
+        <div class="presets">
+            <button onclick="applyPreset('reset')">Reset All</button>
+            <button onclick="applyPreset('slow')">Slow Responses</button>
+            <button onclick="applyPreset('errors')">Error Storm</button>
+            <button onclick="applyPreset('noisy')">Noisy Logs</button>
+            <button onclick="applyPreset('cpuburn')">CPU Burn</button>
+            <button onclick="applyPreset('full')" class="danger">Full Chaos</button>
+        </div>
+        <div class="services" id="services"></div>
+    </div>
+
+    <script>
+        let services = [];
+        let configs = {};
+
+        const PRESETS = {
+            reset: () => ({
+                error_routes: {},
+                latency_routes: {},
+                cpu_load: { enabled: false, percent: 0 },
+                mem_load: { enabled: false, mb: 0 },
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+            }),
+            slow: () => ({
+                error_routes: {},
+                latency_routes: { '/products': '500ms', '/orders': '1s' },
+                cpu_load: { enabled: false, percent: 0 },
+                mem_load: { enabled: false, mb: 0 },
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+            }),
+            errors: () => ({
+                error_routes: { '/products': 0.5, '/orders': 0.3 },
+                latency_routes: {},
+                cpu_load: { enabled: false, percent: 0 },
+                mem_load: { enabled: false, mb: 0 },
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+            }),
+            noisy: () => ({
+                error_routes: {},
+                latency_routes: {},
+                cpu_load: { enabled: false, percent: 0 },
+                mem_load: { enabled: false, mb: 0 },
+                log_volume: { enabled: true, rate_per_sec: 100, pattern: 'mixed' }
+            }),
+            cpuburn: () => ({
+                error_routes: {},
+                latency_routes: {},
+                cpu_load: { enabled: true, percent: 80 },
+                mem_load: { enabled: false, mb: 0 },
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+            }),
+            full: () => ({
+                error_routes: { '/products': 0.3, '/orders': 0.2 },
+                latency_routes: { '/products': '300ms', '/orders': '500ms' },
+                cpu_load: { enabled: true, percent: 60 },
+                mem_load: { enabled: true, mb: 50 },
+                log_volume: { enabled: true, rate_per_sec: 50, pattern: 'error' }
+            })
+        };
+
+        async function fetchServices() {
+            const resp = await fetch('/api/services');
+            services = await resp.json();
+            document.getElementById('status').textContent = `${services.length} services connected`;
+        }
+
+        async function fetchConfig(name) {
+            try {
+                const resp = await fetch(`/api/services/${name}/chaos`);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                configs[name] = await resp.json();
+                return 'ok';
+            } catch (e) {
+                configs[name] = null;
+                return 'err';
+            }
+        }
+
+        async function saveConfig(name) {
+            const cfg = readFormConfig(name);
+            try {
+                const resp = await fetch(`/api/services/${name}/chaos`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(cfg)
+                });
+                if (!resp.ok) {
+                    const body = await resp.json();
+                    throw new Error(body.error || `HTTP ${resp.status}`);
+                }
+                configs[name] = await resp.json();
+                renderService(name);
+                showToast(`${name}: config applied`, 'success');
+            } catch (e) {
+                showToast(`${name}: ${e.message}`, 'error');
+            }
+        }
+
+        function readFormConfig(name) {
+            const card = document.querySelector(`[data-service="${name}"]`);
+            const errorRoutes = {};
+            card.querySelectorAll('.error-route').forEach(row => {
+                const path = row.querySelector('.route-path').value.trim();
+                const rate = parseFloat(row.querySelector('.route-value').value);
+                if (path && !isNaN(rate)) errorRoutes[path] = rate;
+            });
+            const latencyRoutes = {};
+            card.querySelectorAll('.latency-route').forEach(row => {
+                const path = row.querySelector('.route-path').value.trim();
+                const dur = row.querySelector('.route-value').value.trim();
+                if (path && dur) latencyRoutes[path] = dur;
+            });
+            return {
+                error_routes: errorRoutes,
+                latency_routes: latencyRoutes,
+                cpu_load: {
+                    enabled: card.querySelector('#cpu-enabled-' + name).checked,
+                    percent: parseInt(card.querySelector('#cpu-percent-' + name).value) || 0
+                },
+                mem_load: {
+                    enabled: card.querySelector('#mem-enabled-' + name).checked,
+                    mb: parseInt(card.querySelector('#mem-mb-' + name).value) || 0
+                },
+                log_volume: {
+                    enabled: card.querySelector('#log-enabled-' + name).checked,
+                    rate_per_sec: parseInt(card.querySelector('#log-rate-' + name).value) || 0,
+                    pattern: card.querySelector('#log-pattern-' + name).value
+                }
+            };
+        }
+
+        function renderService(name) {
+            let card = document.querySelector(`[data-service="${name}"]`);
+            const cfg = configs[name];
+            const status = cfg ? 'ok' : 'err';
+            const statusLabel = cfg ? 'Connected' : 'Unreachable';
+
+            if (!card) {
+                card = document.createElement('div');
+                card.className = 'service-card';
+                card.dataset.service = name;
+                document.getElementById('services').appendChild(card);
+            }
+
+            const c = cfg || PRESETS.reset();
+            const errorEntries = Object.entries(c.error_routes || {});
+            const latencyEntries = Object.entries(c.latency_routes || {});
+
+            card.innerHTML = `
+                <div class="service-header">
+                    <h2>${name}</h2>
+                    <span class="badge ${status}">${statusLabel}</span>
+                </div>
+                <div class="section">
+                    <h3>Error Injection</h3>
+                    <div class="route-list" id="errors-${name}">
+                        ${errorEntries.map(([path, rate]) => errorRouteRow(path, rate)).join('')}
+                    </div>
+                    <button class="add-route" onclick="addErrorRoute('${name}')">+ Add route</button>
+                </div>
+                <div class="section">
+                    <h3>Latency Injection</h3>
+                    <div class="route-list" id="latency-${name}">
+                        ${latencyEntries.map(([path, dur]) => latencyRouteRow(path, dur)).join('')}
+                    </div>
+                    <button class="add-route" onclick="addLatencyRoute('${name}')">+ Add route</button>
+                </div>
+                <div class="section">
+                    <h3>CPU Load</h3>
+                    <div class="toggle-row">
+                        <label>Enabled</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="cpu-enabled-${name}" ${c.cpu_load?.enabled ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="field-row">
+                        <label>Percent</label>
+                        <input type="number" id="cpu-percent-${name}" min="0" max="100" value="${c.cpu_load?.percent || 0}">
+                    </div>
+                </div>
+                <div class="section">
+                    <h3>Memory Load</h3>
+                    <div class="toggle-row">
+                        <label>Enabled</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="mem-enabled-${name}" ${c.mem_load?.enabled ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="field-row">
+                        <label>MB</label>
+                        <input type="number" id="mem-mb-${name}" min="0" value="${c.mem_load?.mb || 0}">
+                    </div>
+                </div>
+                <div class="section">
+                    <h3>Log Volume</h3>
+                    <div class="toggle-row">
+                        <label>Enabled</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="log-enabled-${name}" ${c.log_volume?.enabled ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="field-row">
+                        <label>Rate/sec</label>
+                        <input type="number" id="log-rate-${name}" min="0" value="${c.log_volume?.rate_per_sec || 0}">
+                    </div>
+                    <div class="field-row">
+                        <label>Pattern</label>
+                        <select id="log-pattern-${name}">
+                            <option value="mixed" ${c.log_volume?.pattern === 'mixed' ? 'selected' : ''}>mixed</option>
+                            <option value="info" ${c.log_volume?.pattern === 'info' ? 'selected' : ''}>info</option>
+                            <option value="warn" ${c.log_volume?.pattern === 'warn' ? 'selected' : ''}>warn</option>
+                            <option value="error" ${c.log_volume?.pattern === 'error' ? 'selected' : ''}>error</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-primary" onclick="saveConfig('${name}')">Apply</button>
+                    <button class="btn btn-secondary" onclick="fetchConfig('${name}').then(() => renderService('${name}'))">Refresh</button>
+                </div>
+            `;
+        }
+
+        function errorRouteRow(path, rate) {
+            return `<div class="route-row error-route">
+                <input type="text" class="route-path" placeholder="/path" value="${path || ''}">
+                <input type="number" class="route-value" placeholder="0.0-1.0" step="0.05" min="0" max="1" value="${rate ?? ''}">
+                <button class="remove" onclick="this.parentElement.remove()">&times;</button>
+            </div>`;
+        }
+
+        function latencyRouteRow(path, dur) {
+            return `<div class="route-row latency-route">
+                <input type="text" class="route-path" placeholder="/path" value="${path || ''}">
+                <input type="text" class="route-value" placeholder="200ms" value="${dur || ''}">
+                <button class="remove" onclick="this.parentElement.remove()">&times;</button>
+            </div>`;
+        }
+
+        function addErrorRoute(name) {
+            const list = document.getElementById(`errors-${name}`);
+            list.insertAdjacentHTML('beforeend', errorRouteRow('', ''));
+        }
+
+        function addLatencyRoute(name) {
+            const list = document.getElementById(`latency-${name}`);
+            list.insertAdjacentHTML('beforeend', latencyRouteRow('', ''));
+        }
+
+        async function applyPreset(presetName) {
+            const preset = PRESETS[presetName]();
+            const promises = services.map(svc =>
+                fetch(`/api/services/${svc.name}/chaos`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(preset)
+                }).then(async resp => {
+                    if (resp.ok) {
+                        configs[svc.name] = await resp.json();
+                        renderService(svc.name);
+                    }
+                }).catch(() => {})
+            );
+            await Promise.all(promises);
+            showToast(`Preset "${presetName}" applied to all services`, 'success');
+        }
+
+        function showToast(msg, type) {
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.textContent = msg;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        async function init() {
+            await fetchServices();
+            const statuses = await Promise.all(services.map(svc => fetchConfig(svc.name)));
+            services.forEach(svc => renderService(svc.name));
+        }
+
+        init();
+    </script>
+</body>
+</html>

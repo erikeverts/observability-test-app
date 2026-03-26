@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-dashboard
+  labels:
+    app: dashboard
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      serviceAccountName: {{ .Release.Name }}-dashboard
+      containers:
+        - name: dashboard
+          image: {{ .Values.image.registry }}/dashboard:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "app.securityContext" . | nindent 10 }}
+          ports:
+            - containerPort: {{ .Values.dashboard.port }}
+          env:
+            - name: SERVICE_PORT
+              value: {{ .Values.dashboard.port | quote }}
+            - name: GATEWAY_URL
+              value: "http://{{ .Release.Name }}-gateway:{{ .Values.gateway.port }}"
+            - name: PRODUCT_SERVICE_URL
+              value: "http://{{ .Release.Name }}-product:{{ .Values.product.port }}"
+            - name: ORDER_SERVICE_URL
+              value: "http://{{ .Release.Name }}-order:{{ .Values.order.port }}"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.dashboard.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.dashboard.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.dashboard.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-dashboard
+  labels:
+    app: dashboard
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.dashboard.port }}
+      targetPort: {{ .Values.dashboard.port }}
+      protocol: TCP
+  selector:
+    app: dashboard
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-dashboard
+  labels:
+    app: dashboard
+    {{- include "app.labels" . | nindent 4 }}
