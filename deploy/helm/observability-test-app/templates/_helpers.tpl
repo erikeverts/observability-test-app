@@ -4,6 +4,16 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
 {{- end -}}
 
+{{- define "app.securityContext" -}}
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 65534
+  capabilities:
+    drop: ["ALL"]
+{{- end -}}
+
 {{- define "app.chaosEnv" -}}
 - name: CHAOS_ERROR_ROUTES
   value: {{ .Values.chaos.errorRoutes | quote }}

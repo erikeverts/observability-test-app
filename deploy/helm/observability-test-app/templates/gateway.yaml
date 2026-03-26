@@ -15,10 +15,12 @@ spec:
       labels:
         app: gateway
     spec:
+      serviceAccountName: {{ .Release.Name }}-gateway
       containers:
         - name: gateway
           image: {{ .Values.image.registry }}/gateway:{{ .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- include "app.securityContext" . | nindent 10 }}
           ports:
             - containerPort: {{ .Values.gateway.port }}
           env:
@@ -62,3 +64,11 @@ spec:
       protocol: TCP
   selector:
     app: gateway
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-gateway
+  labels:
+    app: gateway
+    {{- include "app.labels" . | nindent 4 }}
