@@ -4,12 +4,14 @@ import (
 	"log/slog"
 	"math/rand"
 	"net/http"
+	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type ErrorInjector struct {
+	mu     sync.RWMutex
 	routes map[string]float64
 }
 
@@ -17,12 +19,28 @@ func NewErrorInjector(routes map[string]float64) *ErrorInjector {
 	return &ErrorInjector{routes: routes}
 }
 
-func (e *ErrorInjector) Middleware(next http.Handler) http.Handler {
-	if len(e.routes) == 0 {
-		return next
+func (e *ErrorInjector) SetRoutes(routes map[string]float64) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.routes = routes
+}
+
+func (e *ErrorInjector) GetRoutes() map[string]float64 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	cp := make(map[string]float64, len(e.routes))
+	for k, v := range e.routes {
+		cp[k] = v
 	}
+	return cp
+}
+
+func (e *ErrorInjector) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		e.mu.RLock()
 		rate, ok := e.routes[r.URL.Path]
+		e.mu.RUnlock()
+
 		if !ok {
 			next.ServeHTTP(w, r)
 			return
