@@ -17,6 +17,8 @@ spec:
         app: inventory
     spec:
       serviceAccountName: {{ .Release.Name }}-inventory
+      securityContext:
+        fsGroup: 65534
       containers:
         - name: inventory
           image: {{ .Values.image.registry }}/inventory:{{ .Values.image.tag }}
