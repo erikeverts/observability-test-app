@@ -12,10 +12,11 @@ type Config struct {
 	ServiceName string
 	ServicePort string
 
-	OTLPEndpoint string
-	OTLPProtocol string
-	OTLPInsecure bool
-	OTLPHeaders  map[string]string
+	OTLPEndpoint            string
+	OTLPProtocol            string
+	OTLPInsecure            bool
+	OTLPHeaders             map[string]string
+	OTLPMetricsTemporality  string
 
 	GrafanaOTLPEndpoint string
 	GrafanaAPIToken     string
@@ -51,8 +52,9 @@ func Load() *Config {
 
 		OTLPEndpoint: getEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317"),
 		OTLPProtocol: getEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc"),
-		OTLPInsecure: getBoolEnv("OTEL_EXPORTER_OTLP_INSECURE", true),
-		OTLPHeaders:  buildOTLPHeaders(),
+		OTLPInsecure:           getBoolEnv("OTEL_EXPORTER_OTLP_INSECURE", true),
+		OTLPHeaders:            buildOTLPHeaders(),
+		OTLPMetricsTemporality: getEnv("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY", "delta"),
 
 		GrafanaOTLPEndpoint: getEnv("GRAFANA_OTLP_ENDPOINT", ""),
 		GrafanaAPIToken:     getEnv("GRAFANA_API_TOKEN", ""),

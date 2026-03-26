@@ -87,6 +87,8 @@ All configuration is via environment variables:
 | `SERVICE_PORT` | `8080` | HTTP listen port |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `localhost:4317` | OTLP collector endpoint |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` or `http/protobuf` |
+| `OTEL_EXPORTER_OTLP_INSECURE` | `true` | Use insecure (plaintext) connection |
+| `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY` | `delta` | Metric temporality: `delta` or `cumulative` (use `cumulative` for Prometheus) |
 | `GRAFANA_OTLP_ENDPOINT` | _(empty)_ | Grafana Cloud OTLP endpoint (overrides generic) |
 | `GRAFANA_API_TOKEN` | _(empty)_ | Grafana Cloud API token |
 | `PRODUCT_SERVICE_URL` | `http://localhost:8081` | Product service base URL |

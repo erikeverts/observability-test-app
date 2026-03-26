@@ -42,6 +42,8 @@ securityContext:
   value: {{ .Values.otel.protocol | quote }}
 - name: OTEL_EXPORTER_OTLP_INSECURE
   value: {{ .Values.otel.insecure | quote }}
+- name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY
+  value: {{ .Values.otel.metricsTemporality | quote }}
 {{- if .Values.otel.basicAuth.user }}
 - name: OTLP_BASIC_AUTH_USER
   value: {{ .Values.otel.basicAuth.user | quote }}
