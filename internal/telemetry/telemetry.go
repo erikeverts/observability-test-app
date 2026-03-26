@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -39,9 +40,10 @@ type Telemetry struct {
 
 // exportOpts holds resolved exporter configuration.
 type exportOpts struct {
-	endpoint string
-	headers  map[string]string
-	insecure bool
+	endpoint            string
+	headers             map[string]string
+	insecure            bool
+	metricsTemporality  string
 }
 
 func InitTelemetry(ctx context.Context, cfg *config.Config) (*Telemetry, func(), error) {
@@ -129,9 +131,10 @@ func normalizeEndpoint(ep string, fallbackInsecure bool) (string, bool) {
 func resolveExportOpts(cfg *config.Config) exportOpts {
 	endpoint, insecure := normalizeEndpoint(cfg.OTLPEndpoint, cfg.OTLPInsecure)
 	opts := exportOpts{
-		endpoint: endpoint,
-		headers:  copyHeaders(cfg.OTLPHeaders),
-		insecure: insecure,
+		endpoint:           endpoint,
+		headers:            copyHeaders(cfg.OTLPHeaders),
+		insecure:           insecure,
+		metricsTemporality: cfg.OTLPMetricsTemporality,
 	}
 
 	if cfg.GrafanaOTLPEndpoint != "" {
@@ -174,6 +177,9 @@ func initGRPCExporters(ctx context.Context, opts exportOpts, res *resource.Resou
 		otlpmetricgrpc.WithEndpoint(opts.endpoint),
 		otlpmetricgrpc.WithDialOption(dialOpts...),
 	}
+	if sel := temporalitySelector(opts.metricsTemporality); sel != nil {
+		metricOpts = append(metricOpts, otlpmetricgrpc.WithTemporalitySelector(sel))
+	}
 	logOpts := []otlploggrpc.Option{
 		otlploggrpc.WithEndpoint(opts.endpoint),
 		otlploggrpc.WithDialOption(dialOpts...),
@@ -213,6 +219,9 @@ func initHTTPExporters(ctx context.Context, opts exportOpts, res *resource.Resou
 	}
 	metricOpts := []otlpmetrichttp.Option{
 		otlpmetrichttp.WithEndpoint(opts.endpoint),
+	}
+	if sel := temporalitySelector(opts.metricsTemporality); sel != nil {
+		metricOpts = append(metricOpts, otlpmetrichttp.WithTemporalitySelector(sel))
 	}
 	logOpts := []otlploghttp.Option{
 		otlploghttp.WithEndpoint(opts.endpoint),
@@ -257,6 +266,15 @@ func initHTTPExporters(ctx context.Context, opts exportOpts, res *resource.Resou
 
 	tp, mp, lp := buildProviders(res, traceExp, metricExp, logExp)
 	return tp, mp, lp, nil
+}
+
+func temporalitySelector(preference string) func(sdkmetric.InstrumentKind) metricdata.Temporality {
+	if strings.EqualFold(preference, "cumulative") {
+		return func(sdkmetric.InstrumentKind) metricdata.Temporality {
+			return metricdata.CumulativeTemporality
+		}
+	}
+	return nil
 }
 
 func buildProviders(res *resource.Resource, traceExp sdktrace.SpanExporter, metricExp sdkmetric.Exporter, logExp sdklog.Exporter) (*sdktrace.TracerProvider, *sdkmetric.MeterProvider, *sdklog.LoggerProvider) {
