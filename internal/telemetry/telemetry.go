@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -52,6 +53,13 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (*Telemetry, func(),
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating resource: %w", err)
 	}
+
+	// Clear OTEL_EXPORTER_OTLP_* env vars so the SDK doesn't auto-apply them
+	// on top of our explicit WithEndpoint/WithHeaders/WithInsecure calls.
+	os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	os.Unsetenv("OTEL_EXPORTER_OTLP_PROTOCOL")
+	os.Unsetenv("OTEL_EXPORTER_OTLP_INSECURE")
+	os.Unsetenv("OTEL_EXPORTER_OTLP_HEADERS")
 
 	opts := resolveExportOpts(cfg)
 	protocol := cfg.OTLPProtocol
