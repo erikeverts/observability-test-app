@@ -16,12 +16,13 @@ type Handler struct {
 	httpClient *http.Client
 }
 
-func NewHandler(gatewayURL, productURL, orderURL string) *Handler {
+func NewHandler(gatewayURL, productURL, orderURL, inventoryURL string) *Handler {
 	return &Handler{
 		services: []ServiceInfo{
 			{Name: "gateway", URL: gatewayURL},
 			{Name: "product", URL: productURL},
 			{Name: "order", URL: orderURL},
+			{Name: "inventory", URL: inventoryURL},
 		},
 		httpClient: &http.Client{},
 	}

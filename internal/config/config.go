@@ -35,6 +35,13 @@ type Config struct {
 	ChaosLogVolumeEnabled bool
 	ChaosLogRatePerSec    int
 	ChaosLogPattern       string
+
+	ChaosDiskFillEnabled bool
+	ChaosDiskFillPath    string
+	ChaosDiskFillRateMB  int
+
+	InventoryServiceURL string
+	InventoryDataDir    string
 }
 
 func Load() *Config {
@@ -65,6 +72,13 @@ func Load() *Config {
 		ChaosLogVolumeEnabled: getBoolEnv("CHAOS_LOG_VOLUME_ENABLED", false),
 		ChaosLogRatePerSec:    getIntEnv("CHAOS_LOG_RATE_PER_SEC", 0),
 		ChaosLogPattern:       getEnv("CHAOS_LOG_PATTERN", "mixed"),
+
+		ChaosDiskFillEnabled: getBoolEnv("CHAOS_DISK_FILL_ENABLED", false),
+		ChaosDiskFillPath:    getEnv("CHAOS_DISK_FILL_PATH", "/data"),
+		ChaosDiskFillRateMB:  getIntEnv("CHAOS_DISK_FILL_RATE_MB", 1),
+
+		InventoryServiceURL: getEnv("INVENTORY_SERVICE_URL", "http://localhost:8084"),
+		InventoryDataDir:    getEnv("INVENTORY_DATA_DIR", "/data"),
 	}
 }
 

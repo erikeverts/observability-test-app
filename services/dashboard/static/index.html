@@ -72,6 +72,7 @@
             <button onclick="applyPreset('errors')">Error Storm</button>
             <button onclick="applyPreset('noisy')">Noisy Logs</button>
             <button onclick="applyPreset('cpuburn')">CPU Burn</button>
+            <button onclick="applyPreset('diskfill')">Disk Fill</button>
             <button onclick="applyPreset('full')" class="danger">Full Chaos</button>
         </div>
         <div class="services" id="services"></div>
@@ -87,42 +88,56 @@
                 latency_routes: {},
                 cpu_load: { enabled: false, percent: 0 },
                 mem_load: { enabled: false, mb: 0 },
-                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' },
+                disk_fill: { enabled: false, path: '/data', rate_mb: 1 }
             }),
             slow: () => ({
                 error_routes: {},
                 latency_routes: { '/products': '500ms', '/orders': '1s' },
                 cpu_load: { enabled: false, percent: 0 },
                 mem_load: { enabled: false, mb: 0 },
-                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' },
+                disk_fill: { enabled: false, path: '/data', rate_mb: 1 }
             }),
             errors: () => ({
                 error_routes: { '/products': 0.5, '/orders': 0.3 },
                 latency_routes: {},
                 cpu_load: { enabled: false, percent: 0 },
                 mem_load: { enabled: false, mb: 0 },
-                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' },
+                disk_fill: { enabled: false, path: '/data', rate_mb: 1 }
             }),
             noisy: () => ({
                 error_routes: {},
                 latency_routes: {},
                 cpu_load: { enabled: false, percent: 0 },
                 mem_load: { enabled: false, mb: 0 },
-                log_volume: { enabled: true, rate_per_sec: 100, pattern: 'mixed' }
+                log_volume: { enabled: true, rate_per_sec: 100, pattern: 'mixed' },
+                disk_fill: { enabled: false, path: '/data', rate_mb: 1 }
             }),
             cpuburn: () => ({
                 error_routes: {},
                 latency_routes: {},
                 cpu_load: { enabled: true, percent: 80 },
                 mem_load: { enabled: false, mb: 0 },
-                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' }
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' },
+                disk_fill: { enabled: false, path: '/data', rate_mb: 1 }
+            }),
+            diskfill: () => ({
+                error_routes: {},
+                latency_routes: {},
+                cpu_load: { enabled: false, percent: 0 },
+                mem_load: { enabled: false, mb: 0 },
+                log_volume: { enabled: false, rate_per_sec: 0, pattern: 'mixed' },
+                disk_fill: { enabled: true, path: '/data', rate_mb: 5 }
             }),
             full: () => ({
                 error_routes: { '/products': 0.3, '/orders': 0.2 },
                 latency_routes: { '/products': '300ms', '/orders': '500ms' },
                 cpu_load: { enabled: true, percent: 60 },
                 mem_load: { enabled: true, mb: 50 },
-                log_volume: { enabled: true, rate_per_sec: 50, pattern: 'error' }
+                log_volume: { enabled: true, rate_per_sec: 50, pattern: 'error' },
+                disk_fill: { enabled: true, path: '/data', rate_mb: 5 }
             })
         };
 
@@ -193,6 +208,11 @@
                     enabled: card.querySelector('#log-enabled-' + name).checked,
                     rate_per_sec: parseInt(card.querySelector('#log-rate-' + name).value) || 0,
                     pattern: card.querySelector('#log-pattern-' + name).value
+                },
+                disk_fill: {
+                    enabled: card.querySelector('#disk-enabled-' + name).checked,
+                    path: card.querySelector('#disk-path-' + name).value || '/data',
+                    rate_mb: parseInt(card.querySelector('#disk-rate-' + name).value) || 1
                 }
             };
         }
@@ -282,6 +302,24 @@
                             <option value="warn" ${c.log_volume?.pattern === 'warn' ? 'selected' : ''}>warn</option>
                             <option value="error" ${c.log_volume?.pattern === 'error' ? 'selected' : ''}>error</option>
                         </select>
+                    </div>
+                </div>
+                <div class="section">
+                    <h3>Disk Fill</h3>
+                    <div class="toggle-row">
+                        <label>Enabled</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="disk-enabled-${name}" ${c.disk_fill?.enabled ? 'checked' : ''}>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="field-row">
+                        <label>Path</label>
+                        <input type="text" id="disk-path-${name}" value="${c.disk_fill?.path || '/data'}">
+                    </div>
+                    <div class="field-row">
+                        <label>MB/sec</label>
+                        <input type="number" id="disk-rate-${name}" min="1" value="${c.disk_fill?.rate_mb || 1}">
                     </div>
                 </div>
                 <div class="actions">

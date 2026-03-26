@@ -34,7 +34,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	httpClient := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
-	svc := order.NewService(cfg.ProductServiceURL, httpClient)
+	svc := order.NewService(cfg.ProductServiceURL, cfg.InventoryServiceURL, httpClient)
 
 	c := chaos.New(cfg)
 	c.LoadSimulator.Start(ctx)
@@ -56,7 +56,7 @@ func main() {
 	handler := c.Middleware(middleware.Wrap(mux, cfg.ServiceName))
 
 	addr := ":" + cfg.ServicePort
-	slog.Info("starting order service", "addr", addr, "product_service", cfg.ProductServiceURL)
+	slog.Info("starting order service", "addr", addr, "product_service", cfg.ProductServiceURL, "inventory_service", cfg.InventoryServiceURL)
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)

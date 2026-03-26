@@ -8,10 +8,11 @@ type Service struct {
 	Mux     *http.ServeMux
 }
 
-func NewService(productServiceURL string, httpClient *http.Client) *Service {
+func NewService(productServiceURL, inventoryServiceURL string, httpClient *http.Client) *Service {
 	store := NewStore()
 	client := NewProductClient(productServiceURL, httpClient)
-	handler := NewHandler(store, client)
+	inventoryClient := NewInventoryClient(inventoryServiceURL, httpClient)
+	handler := NewHandler(store, client, inventoryClient)
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, handler)
 
