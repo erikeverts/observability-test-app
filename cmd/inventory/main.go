@@ -13,8 +13,7 @@ import (
 	"github.com/erikeverts/observability-test-app/internal/config"
 	"github.com/erikeverts/observability-test-app/internal/middleware"
 	"github.com/erikeverts/observability-test-app/internal/telemetry"
-	"github.com/erikeverts/observability-test-app/services/gateway"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"github.com/erikeverts/observability-test-app/services/inventory"
 )
 
 func main() {
@@ -33,11 +32,15 @@ func main() {
 	logger := telemetry.NewLogger(tel.LoggerProvider, cfg.ServiceName)
 	slog.SetDefault(logger)
 
-	httpClient := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
-	svc := gateway.NewService(cfg.ProductServiceURL, cfg.OrderServiceURL, cfg.InventoryServiceURL, httpClient)
+	svc, err := inventory.NewService(cfg.InventoryDataDir)
+	if err != nil {
+		slog.Error("failed to init inventory service", "error", err)
+		os.Exit(1)
+	}
 
 	c := chaos.New(cfg)
 	c.LoadSimulator.Start(ctx)
+	c.DiskFiller.Start(ctx)
 	go c.LogGenerator.Start(ctx)
 
 	mux := http.NewServeMux()
@@ -56,7 +59,7 @@ func main() {
 	handler := c.Middleware(middleware.Wrap(mux, cfg.ServiceName))
 
 	addr := ":" + cfg.ServicePort
-	slog.Info("starting gateway", "addr", addr, "product_service", cfg.ProductServiceURL, "order_service", cfg.OrderServiceURL, "inventory_service", cfg.InventoryServiceURL)
+	slog.Info("starting inventory service", "addr", addr, "data_dir", cfg.InventoryDataDir)
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		slog.Error("server failed", "error", err)
 		os.Exit(1)

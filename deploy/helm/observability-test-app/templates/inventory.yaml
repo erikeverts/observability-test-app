@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-inventory
+  labels:
+    app: inventory
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Release.Name }}-inventory
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory
+  template:
+    metadata:
+      labels:
+        app: inventory
+    spec:
+      serviceAccountName: {{ .Release.Name }}-inventory
+      containers:
+        - name: inventory
+          image: {{ .Values.image.registry }}/inventory:{{ .Values.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: {{ .Values.inventory.port }}
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: inventory
+            - name: SERVICE_PORT
+              value: {{ .Values.inventory.port | quote }}
+            - name: INVENTORY_DATA_DIR
+              value: /data
+            - name: CHAOS_DISK_FILL_ENABLED
+              value: {{ .Values.chaos.diskFill.enabled | quote }}
+            - name: CHAOS_DISK_FILL_PATH
+              value: /data
+            - name: CHAOS_DISK_FILL_RATE_MB
+              value: {{ .Values.chaos.diskFill.rateMB | quote }}
+            {{- include "app.otelEnv" . | nindent 12 }}
+            {{- include "app.chaosEnv" . | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.inventory.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: {{ .Values.inventory.port }}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.inventory.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: {{ .Values.inventory.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-inventory
+  labels:
+    app: inventory
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.inventory.port }}
+      targetPort: {{ .Values.inventory.port }}
+      protocol: TCP
+  selector:
+    app: inventory
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-inventory
+  labels:
+    app: inventory
+    {{- include "app.labels" . | nindent 4 }}

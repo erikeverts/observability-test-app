@@ -6,19 +6,21 @@ import (
 )
 
 type Handler struct {
-	productServiceURL string
-	orderServiceURL   string
-	httpClient        *http.Client
+	productServiceURL   string
+	orderServiceURL     string
+	inventoryServiceURL string
+	httpClient          *http.Client
 }
 
-func NewHandler(productServiceURL, orderServiceURL string, httpClient *http.Client) *Handler {
+func NewHandler(productServiceURL, orderServiceURL, inventoryServiceURL string, httpClient *http.Client) *Handler {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
 	return &Handler{
-		productServiceURL: productServiceURL,
-		orderServiceURL:   orderServiceURL,
-		httpClient:        httpClient,
+		productServiceURL:   productServiceURL,
+		orderServiceURL:     orderServiceURL,
+		inventoryServiceURL: inventoryServiceURL,
+		httpClient:          httpClient,
 	}
 }
 
@@ -28,6 +30,10 @@ func (h *Handler) ProxyProducts(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ProxyOrders(w http.ResponseWriter, r *http.Request) {
 	h.proxy(w, r, h.orderServiceURL)
+}
+
+func (h *Handler) ProxyInventory(w http.ResponseWriter, r *http.Request) {
+	h.proxy(w, r, h.inventoryServiceURL)
 }
 
 func (h *Handler) proxy(w http.ResponseWriter, r *http.Request, targetBase string) {

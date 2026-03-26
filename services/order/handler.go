@@ -15,15 +15,17 @@ import (
 var tracer = otel.Tracer("order-service")
 
 type Handler struct {
-	store         *Store
-	productClient *ProductClient
-	orderCounter  int
+	store           *Store
+	productClient   *ProductClient
+	inventoryClient *InventoryClient
+	orderCounter    int
 }
 
-func NewHandler(store *Store, productClient *ProductClient) *Handler {
+func NewHandler(store *Store, productClient *ProductClient, inventoryClient *InventoryClient) *Handler {
 	return &Handler{
-		store:         store,
-		productClient: productClient,
+		store:           store,
+		productClient:   productClient,
+		inventoryClient: inventoryClient,
 	}
 }
 
@@ -89,6 +91,18 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		}
 		total += product.Price * float64(item.Quantity)
 		productSpan.End()
+
+		_, reserveSpan := tracer.Start(ctx, "ReserveInventory")
+		reserveSpan.SetAttributes(attribute.String("product.id", item.ProductID), attribute.Int("quantity", item.Quantity))
+
+		_, err = h.inventoryClient.Reserve(ctx, item.ProductID, item.Quantity)
+		if err != nil {
+			reserveSpan.End()
+			slog.WarnContext(ctx, "inventory reservation failed", "product_id", item.ProductID, "error", err)
+			writeJSON(w, http.StatusConflict, map[string]string{"error": fmt.Sprintf("inventory reservation failed: %v", err)})
+			return
+		}
+		reserveSpan.End()
 	}
 
 	h.orderCounter++

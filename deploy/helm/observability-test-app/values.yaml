@@ -29,6 +29,9 @@ chaos:
     enabled: false
     ratePerSec: 0
     pattern: "mixed"
+  diskFill:
+    enabled: false
+    rateMB: 1
 
 gateway:
   replicas: 1
@@ -55,6 +58,17 @@ product:
 order:
   replicas: 1
   port: 8082
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+inventory:
+  port: 8084
+  storage: 256Mi
   resources:
     requests:
       cpu: 50m

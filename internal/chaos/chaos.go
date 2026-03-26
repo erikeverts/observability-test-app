@@ -15,6 +15,7 @@ type ChaosConfig struct {
 	CPULoad       CPULoadConfig      `json:"cpu_load"`
 	MemLoad       MemLoadConfig      `json:"mem_load"`
 	LogVolume     LogVolumeConfig    `json:"log_volume"`
+	DiskFill      DiskFillConfig     `json:"disk_fill"`
 }
 
 type CPULoadConfig struct {
@@ -33,11 +34,18 @@ type LogVolumeConfig struct {
 	Pattern    string `json:"pattern"`
 }
 
+type DiskFillConfig struct {
+	Enabled bool   `json:"enabled"`
+	Path    string `json:"path"`
+	RateMB  int    `json:"rate_mb"`
+}
+
 type Chaos struct {
 	ErrorInjector   *ErrorInjector
 	LatencyInjector *LatencyInjector
 	LoadSimulator   *LoadSimulator
 	LogGenerator    *LogGenerator
+	DiskFiller      *DiskFiller
 }
 
 func New(cfg *config.Config) *Chaos {
@@ -46,6 +54,7 @@ func New(cfg *config.Config) *Chaos {
 		LatencyInjector: NewLatencyInjector(cfg.ChaosLatencyRoutes),
 		LoadSimulator:   NewLoadSimulator(cfg.ChaosCPULoadEnabled, cfg.ChaosCPULoadPercent, cfg.ChaosMemLoadEnabled, cfg.ChaosMemLoadMB),
 		LogGenerator:    NewLogGenerator(cfg.ChaosLogVolumeEnabled, cfg.ChaosLogRatePerSec, cfg.ChaosLogPattern),
+		DiskFiller:      NewDiskFiller(cfg.ChaosDiskFillEnabled, cfg.ChaosDiskFillPath, cfg.ChaosDiskFillRateMB),
 	}
 }
 
@@ -65,6 +74,7 @@ func (c *Chaos) GetConfig() ChaosConfig {
 
 	cpuEnabled, cpuPercent, memEnabled, memMB := c.LoadSimulator.GetConfig()
 	logEnabled, logRate, logPattern := c.LogGenerator.GetConfig()
+	diskEnabled, diskPath, diskRate := c.DiskFiller.GetConfig()
 
 	return ChaosConfig{
 		ErrorRoutes:   c.ErrorInjector.GetRoutes(),
@@ -72,6 +82,7 @@ func (c *Chaos) GetConfig() ChaosConfig {
 		CPULoad:       CPULoadConfig{Enabled: cpuEnabled, Percent: cpuPercent},
 		MemLoad:       MemLoadConfig{Enabled: memEnabled, MB: memMB},
 		LogVolume:     LogVolumeConfig{Enabled: logEnabled, RatePerSec: logRate, Pattern: logPattern},
+		DiskFill:      DiskFillConfig{Enabled: diskEnabled, Path: diskPath, RateMB: diskRate},
 	}
 }
 
@@ -90,6 +101,7 @@ func (c *Chaos) ApplyConfig(cfg ChaosConfig) error {
 
 	c.LoadSimulator.Reconfigure(cfg.CPULoad.Enabled, cfg.CPULoad.Percent, cfg.MemLoad.Enabled, cfg.MemLoad.MB)
 	c.LogGenerator.Reconfigure(cfg.LogVolume.Enabled, cfg.LogVolume.RatePerSec, cfg.LogVolume.Pattern)
+	c.DiskFiller.Reconfigure(cfg.DiskFill.Enabled, cfg.DiskFill.Path, cfg.DiskFill.RateMB)
 
 	return nil
 }

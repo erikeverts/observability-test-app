@@ -1,19 +1,21 @@
 # observability-test-app
 
-An OpenTelemetry observability test/demo application with 3 Go microservices, configurable chaos/fault injection, and Kubernetes deployment via Helm.
+An OpenTelemetry observability test/demo application with 4 Go microservices, configurable chaos/fault injection, and Kubernetes deployment via Helm.
 
 ## Architecture
 
 ```
-Client -> API Gateway (:8080) -> Order Service (:8082) -> Product Service (:8081)
-                               -> Product Service (:8081)
+Client -> API Gateway (:8080) -> Order Service (:8082) -> Inventory Service (:8084) -> reserve stock
+                               -> Product Service (:8081)                           -> Product Service (:8081)
+                               -> Inventory Service (:8084)
 
 Chaos Dashboard (:8083) -> controls chaos on all services via /admin/chaos API
 ```
 
 - **API Gateway** - Proxies requests to backend services
 - **Product Service** - In-memory product catalog (5 seeded products)
-- **Order Service** - Creates orders, calls Product Service to validate items and calculate totals
+- **Order Service** - Creates orders, calls Product Service and Inventory Service to validate items, reserve stock, and calculate totals
+- **Inventory Service** - Tracks stock levels per product with an append-only ledger on disk (StatefulSet with PVC)
 - **Chaos Dashboard** - Web UI for controlling chaos/fault injection across all services at runtime
 
 All services export traces, metrics, and logs via OTLP (gRPC or HTTP). Supports Grafana Cloud native OTLP export.
@@ -26,22 +28,26 @@ All services export traces, metrics, and logs via OTLP (gRPC or HTTP). Supports 
 # Terminal 1: Product Service
 OTEL_SERVICE_NAME=product SERVICE_PORT=8081 go run ./cmd/product
 
-# Terminal 2: Order Service
+# Terminal 2: Inventory Service
+OTEL_SERVICE_NAME=inventory SERVICE_PORT=8084 INVENTORY_DATA_DIR=./data go run ./cmd/inventory
+
+# Terminal 3: Order Service
 OTEL_SERVICE_NAME=order SERVICE_PORT=8082 go run ./cmd/order
 
-# Terminal 3: API Gateway
+# Terminal 4: API Gateway
 OTEL_SERVICE_NAME=gateway SERVICE_PORT=8080 go run ./cmd/gateway
 
-# Terminal 4 (optional): Chaos Dashboard
+# Terminal 5 (optional): Chaos Dashboard
 SERVICE_PORT=8083 go run ./cmd/dashboard
 ```
 
 Or use the Makefile:
 ```bash
 make run-product    # in terminal 1
-make run-order      # in terminal 2
-make run-gateway    # in terminal 3
-make run-dashboard  # in terminal 4 (optional)
+make run-inventory  # in terminal 2
+make run-order      # in terminal 3
+make run-gateway    # in terminal 4
+make run-dashboard  # in terminal 5 (optional)
 ```
 
 ### Test endpoints
@@ -61,6 +67,12 @@ curl -X POST http://localhost:8080/orders \
 # List orders
 curl http://localhost:8080/orders
 
+# Check inventory
+curl http://localhost:8080/inventory
+
+# Check stock for a product
+curl http://localhost:8080/inventory/prod-1
+
 # Health check
 curl http://localhost:8080/health
 ```
@@ -79,6 +91,8 @@ All configuration is via environment variables:
 | `GRAFANA_API_TOKEN` | _(empty)_ | Grafana Cloud API token |
 | `PRODUCT_SERVICE_URL` | `http://localhost:8081` | Product service base URL |
 | `ORDER_SERVICE_URL` | `http://localhost:8082` | Order service base URL |
+| `INVENTORY_SERVICE_URL` | `http://localhost:8084` | Inventory service base URL |
+| `INVENTORY_DATA_DIR` | `/data` | Inventory ledger data directory |
 
 ### Chaos Configuration
 
@@ -93,6 +107,9 @@ All configuration is via environment variables:
 | `CHAOS_LOG_VOLUME_ENABLED` | `false` | Enable log generation |
 | `CHAOS_LOG_RATE_PER_SEC` | `0` | Log lines per second |
 | `CHAOS_LOG_PATTERN` | `mixed` | `info`, `warn`, `error`, or `mixed` |
+| `CHAOS_DISK_FILL_ENABLED` | `false` | Enable disk fill simulation |
+| `CHAOS_DISK_FILL_PATH` | `/data` | Directory to write fill data to |
+| `CHAOS_DISK_FILL_RATE_MB` | `1` | MB per second to write |
 
 ## Chaos Dashboard
 
@@ -115,9 +132,9 @@ kubectl port-forward svc/<release-name>-dashboard 8083:8083
 
 ### Features
 
-- **Per-service controls**: Configure error injection, latency injection, CPU/memory load, and log volume for each service independently
+- **Per-service controls**: Configure error injection, latency injection, CPU/memory load, log volume, and disk fill for each service independently
 - **Route-level granularity**: Set error rates and latency per HTTP path (e.g., `/products` at 50% error rate)
-- **Presets**: One-click scenarios — Reset All, Slow Responses, Error Storm, Noisy Logs, CPU Burn, Full Chaos
+- **Presets**: One-click scenarios — Reset All, Slow Responses, Error Storm, Noisy Logs, CPU Burn, Disk Fill, Full Chaos
 - **Live state**: Dashboard reads current chaos config from each service on load
 
 ### Runtime Chaos API
@@ -136,7 +153,7 @@ curl -X PUT http://localhost:8081/admin/chaos \
 
 ## Telemetry
 
-- **Traces**: Full distributed tracing across all 3 services with W3C TraceContext propagation. Custom spans on business logic operations.
+- **Traces**: Full distributed tracing across all 4 services with W3C TraceContext propagation. Custom spans on business logic operations.
 - **Metrics**: Custom counters for orders created, product views, and chaos injection events. Plus automatic HTTP metrics from `otelhttp`.
 - **Logs**: Structured JSON via `log/slog` with `otelslog` bridge. All logs include `trace_id` and `span_id` for correlation.
 
@@ -178,10 +195,10 @@ helm install demo deploy/helm/observability-test-app \
 ## Development
 
 ```bash
-make build        # Build all binaries
-make test         # Run tests
-make docker-build  # Build Docker images
-make helm-lint     # Lint Helm chart
-make run-dashboard # Run chaos dashboard locally
-make clean         # Clean build artifacts
+make build          # Build all binaries
+make test           # Run tests
+make helm-lint      # Lint Helm chart
+make run-inventory  # Run inventory service locally
+make run-dashboard  # Run chaos dashboard locally
+make clean          # Clean build artifacts
 ```

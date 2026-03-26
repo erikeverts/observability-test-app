@@ -26,8 +26,12 @@ func main() {
 	if orderURL == "" {
 		orderURL = "http://localhost:8082"
 	}
+	inventoryURL := os.Getenv("INVENTORY_SERVICE_URL")
+	if inventoryURL == "" {
+		inventoryURL = "http://localhost:8084"
+	}
 
-	svc := dashboard.NewService(gatewayURL, productURL, orderURL)
+	svc := dashboard.NewService(gatewayURL, productURL, orderURL, inventoryURL)
 
 	addr := ":" + port
 	log.Printf("starting chaos dashboard on %s", addr)

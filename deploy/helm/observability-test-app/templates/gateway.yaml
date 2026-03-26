@@ -32,6 +32,8 @@ spec:
               value: "http://{{ .Release.Name }}-product:{{ .Values.product.port }}"
             - name: ORDER_SERVICE_URL
               value: "http://{{ .Release.Name }}-order:{{ .Values.order.port }}"
+            - name: INVENTORY_SERVICE_URL
+              value: "http://{{ .Release.Name }}-inventory:{{ .Values.inventory.port }}"
             {{- include "app.otelEnv" . | nindent 12 }}
             {{- include "app.chaosEnv" . | nindent 12 }}
           livenessProbe:

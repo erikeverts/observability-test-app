@@ -14,8 +14,8 @@ type Service struct {
 	Mux     *http.ServeMux
 }
 
-func NewService(gatewayURL, productURL, orderURL string) *Service {
-	handler := NewHandler(gatewayURL, productURL, orderURL)
+func NewService(gatewayURL, productURL, orderURL, inventoryURL string) *Service {
+	handler := NewHandler(gatewayURL, productURL, orderURL, inventoryURL)
 	mux := http.NewServeMux()
 
 	staticSub, _ := fs.Sub(staticFiles, "static")
