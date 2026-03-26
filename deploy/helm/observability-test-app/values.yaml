@@ -1,0 +1,64 @@
+image:
+  registry: ghcr.io/erikeverts/observability-test-app
+  tag: latest
+  pullPolicy: IfNotPresent
+
+otel:
+  endpoint: "otel-collector:4317"
+  protocol: "grpc"
+  insecure: true
+  basicAuth:
+    user: ""
+    password: ""
+  headers: ""
+
+grafana:
+  endpoint: ""
+  apiToken: ""
+
+chaos:
+  errorRoutes: ""
+  latencyRoutes: ""
+  cpuLoad:
+    enabled: false
+    percent: 0
+  memLoad:
+    enabled: false
+    mb: 0
+  logVolume:
+    enabled: false
+    ratePerSec: 0
+    pattern: "mixed"
+
+gateway:
+  replicas: 1
+  port: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+product:
+  replicas: 1
+  port: 8081
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+order:
+  replicas: 1
+  port: 8082
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
