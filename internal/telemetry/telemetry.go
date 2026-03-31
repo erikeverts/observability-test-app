@@ -23,6 +23,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/exemplar"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -343,6 +344,7 @@ func buildProviders(res *resource.Resource, traceExp sdktrace.SpanExporter, metr
 	mp := sdkmetric.NewMeterProvider(
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExp, sdkmetric.WithInterval(15*time.Second))),
 		sdkmetric.WithResource(res),
+		sdkmetric.WithExemplarFilter(exemplar.TraceBasedFilter),
 	)
 
 	lp := sdklog.NewLoggerProvider(
