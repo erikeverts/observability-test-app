@@ -49,7 +49,7 @@ func requestLogging(next http.Handler) http.Handler {
 		next.ServeHTTP(sw, r)
 
 		span := trace.SpanFromContext(r.Context())
-		slog.Info("request",
+		slog.InfoContext(r.Context(), "request",
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", sw.status,
