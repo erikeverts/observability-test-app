@@ -13,7 +13,9 @@ func Wrap(handler http.Handler, serviceName string) http.Handler {
 	h := handler
 	h = requestLogging(h)
 	h = recovery(h)
-	h = otelhttp.NewHandler(h, serviceName)
+	h = otelhttp.NewHandler(h, serviceName, otelhttp.WithFilter(func(r *http.Request) bool {
+		return r.URL.Path != "/health" && r.URL.Path != "/ready"
+	}))
 	return h
 }
 
