@@ -65,8 +65,10 @@ securityContext:
   value: "/etc/otel-tls/tls.crt"
 - name: OTEL_EXPORTER_OTLP_CLIENT_KEY
   value: "/etc/otel-tls/tls.key"
+{{- if .Values.otel.tls.customCACert }}
 - name: OTEL_EXPORTER_OTLP_CERTIFICATE
   value: "/etc/otel-tls/ca.crt"
+{{- end }}
 {{- end }}
 {{- end -}}
 
