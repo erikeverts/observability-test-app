@@ -89,6 +89,9 @@ All configuration is via environment variables:
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | `grpc` or `http/protobuf` |
 | `OTEL_EXPORTER_OTLP_INSECURE` | `true` | Use insecure (plaintext) connection |
 | `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY` | `delta` | Metric temporality: `delta` or `cumulative` (use `cumulative` for Prometheus) |
+| `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` | _(empty)_ | Path to client certificate for mTLS |
+| `OTEL_EXPORTER_OTLP_CLIENT_KEY` | _(empty)_ | Path to client private key for mTLS |
+| `OTEL_EXPORTER_OTLP_CERTIFICATE` | _(empty)_ | Path to CA certificate for server verification |
 | `GRAFANA_OTLP_ENDPOINT` | _(empty)_ | Grafana Cloud OTLP endpoint (overrides generic) |
 | `GRAFANA_API_TOKEN` | _(empty)_ | Grafana Cloud API token |
 | `PRODUCT_SERVICE_URL` | `http://localhost:8081` | Product service base URL |
@@ -177,6 +180,16 @@ helm install demo deploy/helm/observability-test-app \
   --set otel.endpoint=otel-collector:4317 \
   --set chaos.errorRoutes="/products:0.1" \
   --set chaos.latencyRoutes="/orders:500ms"
+
+# Deploy with mTLS authentication
+kubectl create secret generic otel-mtls \
+  --from-file=tls.crt=client.crt \
+  --from-file=tls.key=client.key \
+  --from-file=ca.crt=ca.crt  # optional, omit to use system CA pool
+helm install demo deploy/helm/observability-test-app \
+  --set otel.endpoint=otel-collector:4317 \
+  --set otel.insecure=false \
+  --set otel.tls.secretName=otel-mtls
 
 # Deploy with Grafana Cloud
 helm install demo deploy/helm/observability-test-app \

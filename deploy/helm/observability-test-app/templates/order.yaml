@@ -16,6 +16,10 @@ spec:
         app: order
     spec:
       serviceAccountName: {{ .Release.Name }}-order
+      {{- if .Values.otel.tls.secretName }}
+      volumes:
+        {{- include "app.otelTlsVolume" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: order
           image: {{ .Values.image.registry }}/order:{{ .Values.image.tag }}
@@ -46,6 +50,10 @@ spec:
               port: {{ .Values.order.port }}
             initialDelaySeconds: 3
             periodSeconds: 5
+          {{- if .Values.otel.tls.secretName }}
+          volumeMounts:
+            {{- include "app.otelTlsVolumeMount" . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.order.resources | nindent 12 }}
 ---

@@ -12,6 +12,8 @@ otel:
     user: ""
     password: ""
   headers: ""
+  tls:
+    secretName: ""
 
 grafana:
   endpoint: ""

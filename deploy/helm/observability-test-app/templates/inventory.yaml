@@ -19,6 +19,10 @@ spec:
       serviceAccountName: {{ .Release.Name }}-inventory
       securityContext:
         fsGroup: 65534
+      {{- if .Values.otel.tls.secretName }}
+      volumes:
+        {{- include "app.otelTlsVolume" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: inventory
           image: {{ .Values.image.registry }}/inventory:{{ .Values.image.tag }}
@@ -50,6 +54,7 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
+            {{- include "app.otelTlsVolumeMount" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /health
