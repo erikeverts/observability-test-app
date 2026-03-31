@@ -16,6 +16,10 @@ spec:
         app: gateway
     spec:
       serviceAccountName: {{ .Release.Name }}-gateway
+      {{- if .Values.otel.tls.secretName }}
+      volumes:
+        {{- include "app.otelTlsVolume" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: gateway
           image: {{ .Values.image.registry }}/gateway:{{ .Values.image.tag }}
@@ -48,6 +52,10 @@ spec:
               port: {{ .Values.gateway.port }}
             initialDelaySeconds: 3
             periodSeconds: 5
+          {{- if .Values.otel.tls.secretName }}
+          volumeMounts:
+            {{- include "app.otelTlsVolumeMount" . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}
 ---

@@ -60,4 +60,28 @@ securityContext:
 - name: GRAFANA_API_TOKEN
   value: {{ .Values.grafana.apiToken | quote }}
 {{- end }}
+{{- if .Values.otel.tls.secretName }}
+- name: OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE
+  value: "/etc/otel-tls/tls.crt"
+- name: OTEL_EXPORTER_OTLP_CLIENT_KEY
+  value: "/etc/otel-tls/tls.key"
+- name: OTEL_EXPORTER_OTLP_CERTIFICATE
+  value: "/etc/otel-tls/ca.crt"
+{{- end }}
+{{- end -}}
+
+{{- define "app.otelTlsVolume" -}}
+{{- if .Values.otel.tls.secretName }}
+- name: otel-tls
+  secret:
+    secretName: {{ .Values.otel.tls.secretName }}
+{{- end }}
+{{- end -}}
+
+{{- define "app.otelTlsVolumeMount" -}}
+{{- if .Values.otel.tls.secretName }}
+- name: otel-tls
+  mountPath: /etc/otel-tls
+  readOnly: true
+{{- end }}
 {{- end -}}

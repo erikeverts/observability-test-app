@@ -17,6 +17,9 @@ type Config struct {
 	OTLPInsecure            bool
 	OTLPHeaders             map[string]string
 	OTLPMetricsTemporality  string
+	OTLPClientCert          string
+	OTLPClientKey           string
+	OTLPCACert              string
 
 	GrafanaOTLPEndpoint string
 	GrafanaAPIToken     string
@@ -55,6 +58,9 @@ func Load() *Config {
 		OTLPInsecure:           getBoolEnv("OTEL_EXPORTER_OTLP_INSECURE", true),
 		OTLPHeaders:            buildOTLPHeaders(),
 		OTLPMetricsTemporality: getEnv("OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY", "delta"),
+		OTLPClientCert:         getEnv("OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE", ""),
+		OTLPClientKey:          getEnv("OTEL_EXPORTER_OTLP_CLIENT_KEY", ""),
+		OTLPCACert:             getEnv("OTEL_EXPORTER_OTLP_CERTIFICATE", ""),
 
 		GrafanaOTLPEndpoint: getEnv("GRAFANA_OTLP_ENDPOINT", ""),
 		GrafanaAPIToken:     getEnv("GRAFANA_API_TOKEN", ""),

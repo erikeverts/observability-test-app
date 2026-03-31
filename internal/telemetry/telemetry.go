@@ -3,6 +3,7 @@ package telemetry
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"fmt"
 	"log/slog"
@@ -44,6 +45,9 @@ type exportOpts struct {
 	headers             map[string]string
 	insecure            bool
 	metricsTemporality  string
+	clientCertPath      string
+	clientKeyPath       string
+	caCertPath          string
 }
 
 func InitTelemetry(ctx context.Context, cfg *config.Config) (*Telemetry, func(), error) {
@@ -62,6 +66,9 @@ func InitTelemetry(ctx context.Context, cfg *config.Config) (*Telemetry, func(),
 	os.Unsetenv("OTEL_EXPORTER_OTLP_PROTOCOL")
 	os.Unsetenv("OTEL_EXPORTER_OTLP_INSECURE")
 	os.Unsetenv("OTEL_EXPORTER_OTLP_HEADERS")
+	os.Unsetenv("OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE")
+	os.Unsetenv("OTEL_EXPORTER_OTLP_CLIENT_KEY")
+	os.Unsetenv("OTEL_EXPORTER_OTLP_CERTIFICATE")
 
 	opts := resolveExportOpts(cfg)
 	protocol := cfg.OTLPProtocol
@@ -135,6 +142,9 @@ func resolveExportOpts(cfg *config.Config) exportOpts {
 		headers:            copyHeaders(cfg.OTLPHeaders),
 		insecure:           insecure,
 		metricsTemporality: cfg.OTLPMetricsTemporality,
+		clientCertPath:     cfg.OTLPClientCert,
+		clientKeyPath:      cfg.OTLPClientKey,
+		caCertPath:         cfg.OTLPCACert,
 	}
 
 	if cfg.GrafanaOTLPEndpoint != "" {
@@ -158,12 +168,52 @@ func copyHeaders(src map[string]string) map[string]string {
 	return dst
 }
 
+func buildTLSConfig(clientCertPath, clientKeyPath, caCertPath string) (*tls.Config, error) {
+	if clientCertPath == "" {
+		return nil, nil
+	}
+
+	tlsCfg := &tls.Config{}
+
+	cert, err := tls.LoadX509KeyPair(clientCertPath, clientKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("loading client certificate: %w", err)
+	}
+	tlsCfg.Certificates = []tls.Certificate{cert}
+
+	if caCertPath != "" {
+		caCert, err := os.ReadFile(caCertPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				slog.Info("CA certificate not found, using system CA pool", "path", caCertPath)
+			} else {
+				return nil, fmt.Errorf("reading CA certificate: %w", err)
+			}
+		} else {
+			pool := x509.NewCertPool()
+			if !pool.AppendCertsFromPEM(caCert) {
+				return nil, fmt.Errorf("failed to parse CA certificate from %s", caCertPath)
+			}
+			tlsCfg.RootCAs = pool
+		}
+	}
+
+	return tlsCfg, nil
+}
+
 func initGRPCExporters(ctx context.Context, opts exportOpts, res *resource.Resource) (*sdktrace.TracerProvider, *sdkmetric.MeterProvider, *sdklog.LoggerProvider, error) {
 	dialOpts := []grpc.DialOption{}
 	if opts.insecure {
 		dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	} else {
-		dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+		tlsCfg, err := buildTLSConfig(opts.clientCertPath, opts.clientKeyPath, opts.caCertPath)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("building TLS config: %w", err)
+		}
+		if tlsCfg == nil {
+			tlsCfg = &tls.Config{}
+		}
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
 	}
 	if len(opts.headers) > 0 {
 		dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(headerInterceptor(opts.headers)))
@@ -238,9 +288,16 @@ func initHTTPExporters(ctx context.Context, opts exportOpts, res *resource.Resou
 		metricOpts = append(metricOpts, otlpmetrichttp.WithInsecure())
 		logOpts = append(logOpts, otlploghttp.WithInsecure())
 	} else {
-		traceOpts = append(traceOpts, otlptracehttp.WithTLSClientConfig(&tls.Config{}))
-		metricOpts = append(metricOpts, otlpmetrichttp.WithTLSClientConfig(&tls.Config{}))
-		logOpts = append(logOpts, otlploghttp.WithTLSClientConfig(&tls.Config{}))
+		tlsCfg, err := buildTLSConfig(opts.clientCertPath, opts.clientKeyPath, opts.caCertPath)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("building TLS config: %w", err)
+		}
+		if tlsCfg == nil {
+			tlsCfg = &tls.Config{}
+		}
+		traceOpts = append(traceOpts, otlptracehttp.WithTLSClientConfig(tlsCfg))
+		metricOpts = append(metricOpts, otlpmetrichttp.WithTLSClientConfig(tlsCfg))
+		logOpts = append(logOpts, otlploghttp.WithTLSClientConfig(tlsCfg))
 	}
 
 	if isGrafana {

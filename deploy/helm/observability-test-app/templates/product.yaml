@@ -16,6 +16,10 @@ spec:
         app: product
     spec:
       serviceAccountName: {{ .Release.Name }}-product
+      {{- if .Values.otel.tls.secretName }}
+      volumes:
+        {{- include "app.otelTlsVolume" . | nindent 8 }}
+      {{- end }}
       containers:
         - name: product
           image: {{ .Values.image.registry }}/product:{{ .Values.image.tag }}
@@ -42,6 +46,10 @@ spec:
               port: {{ .Values.product.port }}
             initialDelaySeconds: 3
             periodSeconds: 5
+          {{- if .Values.otel.tls.secretName }}
+          volumeMounts:
+            {{- include "app.otelTlsVolumeMount" . | nindent 12 }}
+          {{- end }}
           resources:
             {{- toYaml .Values.product.resources | nindent 12 }}
 ---
