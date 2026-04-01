@@ -49,13 +49,18 @@ func requestLogging(next http.Handler) http.Handler {
 		next.ServeHTTP(sw, r)
 
 		span := trace.SpanFromContext(r.Context())
-		slog.InfoContext(r.Context(), "request",
+		attrs := []any{
 			"method", r.Method,
 			"path", r.URL.Path,
 			"status", sw.status,
 			"duration_ms", time.Since(start).Milliseconds(),
-			"trace_id", span.SpanContext().TraceID().String(),
-			"span_id", span.SpanContext().SpanID().String(),
-		)
+		}
+		if span.SpanContext().IsValid() {
+			attrs = append(attrs,
+				"trace_id", span.SpanContext().TraceID().String(),
+				"span_id", span.SpanContext().SpanID().String(),
+			)
+		}
+		slog.InfoContext(r.Context(), "request", attrs...)
 	})
 }
