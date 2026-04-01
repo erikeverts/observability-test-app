@@ -1,15 +1,24 @@
 package order
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+)
 
 type Service struct {
 	Handler *Handler
-	Store   *Store
+	Store   OrderStore
 	Mux     *http.ServeMux
 }
 
-func NewService(productServiceURL, inventoryServiceURL string, httpClient *http.Client) *Service {
-	store := NewStore()
+func NewService(productServiceURL, inventoryServiceURL string, httpClient *http.Client, pool *pgxpool.Pool) *Service {
+	var store OrderStore
+	if pool != nil {
+		store = NewPGStore(pool)
+	} else {
+		store = NewMemoryStore()
+	}
 	client := NewProductClient(productServiceURL, httpClient)
 	inventoryClient := NewInventoryClient(inventoryServiceURL, httpClient)
 	handler := NewHandler(store, client, inventoryClient)

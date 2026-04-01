@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/erikeverts/observability-test-app/internal/model"
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -15,13 +16,12 @@ import (
 var tracer = otel.Tracer("order-service")
 
 type Handler struct {
-	store           *Store
+	store           OrderStore
 	productClient   *ProductClient
 	inventoryClient *InventoryClient
-	orderCounter    int
 }
 
-func NewHandler(store *Store, productClient *ProductClient, inventoryClient *InventoryClient) *Handler {
+func NewHandler(store OrderStore, productClient *ProductClient, inventoryClient *InventoryClient) *Handler {
 	return &Handler{
 		store:           store,
 		productClient:   productClient,
@@ -33,7 +33,12 @@ func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "ListOrders")
 	defer span.End()
 
-	orders := h.store.List()
+	orders, err := h.store.List(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list orders", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
 	span.SetAttributes(attribute.Int("order.count", len(orders)))
 	slog.InfoContext(ctx, "listing orders", "count", len(orders))
 	writeJSON(w, http.StatusOK, orders)
@@ -50,7 +55,7 @@ func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	span.SetAttributes(attribute.String("order.id", id))
 
-	order, err := h.store.Get(id)
+	order, err := h.store.Get(ctx, id)
 	if err != nil {
 		slog.WarnContext(ctx, "order not found", "id", id)
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
@@ -105,16 +110,19 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		reserveSpan.End()
 	}
 
-	h.orderCounter++
 	order := &model.Order{
-		ID:        fmt.Sprintf("order-%d", h.orderCounter),
+		ID:        "ord-" + uuid.NewString(),
 		Items:     req.Items,
 		Status:    model.OrderStatusConfirmed,
 		Total:     total,
 		CreatedAt: time.Now(),
 	}
 
-	h.store.Save(order)
+	if err := h.store.Save(ctx, order); err != nil {
+		slog.ErrorContext(ctx, "failed to save order", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
 	span.SetAttributes(
 		attribute.String("order.id", order.ID),
 		attribute.Float64("order.total", order.Total),

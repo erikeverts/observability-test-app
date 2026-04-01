@@ -12,10 +12,10 @@ import (
 var tracer = otel.Tracer("product-service")
 
 type Handler struct {
-	store *Store
+	store ProductStore
 }
 
-func NewHandler(store *Store) *Handler {
+func NewHandler(store ProductStore) *Handler {
 	return &Handler{store: store}
 }
 
@@ -23,7 +23,12 @@ func (h *Handler) ListProducts(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "ListProducts")
 	defer span.End()
 
-	products := h.store.List()
+	products, err := h.store.List(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list products", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
 	span.SetAttributes(attribute.Int("product.count", len(products)))
 	slog.InfoContext(ctx, "listing products", "count", len(products))
 	writeJSON(w, http.StatusOK, products)
@@ -40,7 +45,7 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 	}
 	span.SetAttributes(attribute.String("product.id", id))
 
-	product, err := h.store.Get(id)
+	product, err := h.store.Get(ctx, id)
 	if err != nil {
 		slog.WarnContext(ctx, "product not found", "id", id)
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})

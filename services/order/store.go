@@ -1,30 +1,32 @@
 package order
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/erikeverts/observability-test-app/internal/model"
 )
 
-type Store struct {
+type MemoryStore struct {
 	mu     sync.RWMutex
 	orders map[string]*model.Order
 }
 
-func NewStore() *Store {
-	return &Store{
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{
 		orders: make(map[string]*model.Order),
 	}
 }
 
-func (s *Store) Save(order *model.Order) {
+func (s *MemoryStore) Save(_ context.Context, order *model.Order) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.orders[order.ID] = order
+	return nil
 }
 
-func (s *Store) Get(id string) (*model.Order, error) {
+func (s *MemoryStore) Get(_ context.Context, id string) (*model.Order, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	o, ok := s.orders[id]
@@ -35,12 +37,12 @@ func (s *Store) Get(id string) (*model.Order, error) {
 	return &cp, nil
 }
 
-func (s *Store) List() []model.Order {
+func (s *MemoryStore) List(_ context.Context) ([]model.Order, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]model.Order, 0, len(s.orders))
 	for _, o := range s.orders {
 		result = append(result, *o)
 	}
-	return result
+	return result, nil
 }

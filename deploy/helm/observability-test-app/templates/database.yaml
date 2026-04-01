@@ -1,0 +1,31 @@
+{{- if .Values.database.cnpg.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Release.Name }}-db
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  instances: {{ .Values.database.cnpg.instances }}
+  storage:
+    size: {{ .Values.database.cnpg.storage.size }}
+    {{- if .Values.database.cnpg.storage.storageClass }}
+    storageClassName: {{ .Values.database.cnpg.storage.storageClass }}
+    {{- end }}
+  bootstrap:
+    initdb:
+      database: obstest
+      owner: obstest
+{{- end }}
+---
+{{- if and (not .Values.database.cnpg.enabled) .Values.database.external.url }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-db-url
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  DATABASE_URL: {{ .Values.database.external.url | quote }}
+{{- end }}

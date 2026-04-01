@@ -37,6 +37,19 @@ chaos:
     enabled: false
     rateMB: 1
 
+database:
+  # Option 1: CloudNativePG operator (requires CNPG installed on cluster)
+  cnpg:
+    enabled: false
+    instances: 1
+    storage:
+      size: 1Gi
+      # storageClass: ""
+
+  # Option 2: External PostgreSQL (bring your own)
+  external:
+    url: ""  # e.g. "postgres://user:pass@host:5432/dbname?sslmode=require"
+
 gateway:
   replicas: 1
   port: 8080

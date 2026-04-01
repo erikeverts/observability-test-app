@@ -38,6 +38,7 @@ spec:
               value: "http://{{ .Release.Name }}-inventory:{{ .Values.inventory.port }}"
             {{- include "app.otelEnv" . | nindent 12 }}
             {{- include "app.chaosEnv" . | nindent 12 }}
+            {{- include "app.databaseEnv" . | nindent 12 }}
           livenessProbe:
             httpGet:
               path: /health
