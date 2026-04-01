@@ -42,6 +42,7 @@ database:
   cnpg:
     enabled: false
     instances: 1
+    # imageName: ""  # Override PG image (e.g. for ECR pull-through cache)
     storage:
       size: 1Gi
       # storageClass: ""

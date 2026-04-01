@@ -7,6 +7,9 @@ metadata:
     {{- include "app.labels" . | nindent 4 }}
 spec:
   instances: {{ .Values.database.cnpg.instances }}
+  {{- if .Values.database.cnpg.imageName }}
+  imageName: {{ .Values.database.cnpg.imageName }}
+  {{- end }}
   storage:
     size: {{ .Values.database.cnpg.storage.size }}
     {{- if .Values.database.cnpg.storage.storageClass }}
