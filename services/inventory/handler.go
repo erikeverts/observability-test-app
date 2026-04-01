@@ -12,10 +12,10 @@ import (
 var tracer = otel.Tracer("inventory-service")
 
 type Handler struct {
-	store *Store
+	store InventoryStore
 }
 
-func NewHandler(store *Store) *Handler {
+func NewHandler(store InventoryStore) *Handler {
 	return &Handler{store: store}
 }
 
@@ -23,7 +23,12 @@ func (h *Handler) ListStock(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "ListStock")
 	defer span.End()
 
-	stock := h.store.ListStock()
+	stock, err := h.store.ListStock(ctx)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to list inventory", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		return
+	}
 	span.SetAttributes(attribute.Int("inventory.count", len(stock)))
 	slog.InfoContext(ctx, "listing inventory", "count", len(stock))
 	writeJSON(w, http.StatusOK, stock)
@@ -36,7 +41,7 @@ func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	span.SetAttributes(attribute.String("product.id", id))
 
-	qty, ok := h.store.GetStock(id)
+	qty, ok := h.store.GetStock(ctx, id)
 	if !ok {
 		slog.WarnContext(ctx, "product not in inventory", "id", id)
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": "product not found in inventory"})
@@ -63,7 +68,7 @@ func (h *Handler) ReserveStock(w http.ResponseWriter, r *http.Request) {
 		attribute.Int("reserve.quantity", req.Quantity),
 	)
 
-	remaining, err := h.store.Reserve(req.ProductID, req.Quantity)
+	remaining, err := h.store.Reserve(ctx, req.ProductID, req.Quantity)
 	if err != nil {
 		slog.WarnContext(ctx, "reservation failed", "product_id", req.ProductID, "quantity", req.Quantity, "error", err)
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})

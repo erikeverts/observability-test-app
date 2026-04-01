@@ -80,6 +80,22 @@ securityContext:
 {{- end }}
 {{- end -}}
 
+{{- define "app.databaseEnv" -}}
+{{- if .Values.database.cnpg.enabled }}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Release.Name }}-db-app
+      key: uri
+{{- else if .Values.database.external.url }}
+- name: DATABASE_URL
+  valueFrom:
+    secretKeyRef:
+      name: {{ .Release.Name }}-db-url
+      key: DATABASE_URL
+{{- end }}
+{{- end -}}
+
 {{- define "app.otelTlsVolumeMount" -}}
 {{- if .Values.otel.tls.secretName }}
 - name: otel-tls

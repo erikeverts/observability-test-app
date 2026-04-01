@@ -46,6 +46,8 @@ type Config struct {
 
 	InventoryServiceURL string
 	InventoryDataDir    string
+
+	DatabaseURL string
 }
 
 func Load() *Config {
@@ -87,6 +89,8 @@ func Load() *Config {
 
 		InventoryServiceURL: getEnv("INVENTORY_SERVICE_URL", "http://localhost:8084"),
 		InventoryDataDir:    getEnv("INVENTORY_DATA_DIR", "/data"),
+
+		DatabaseURL: getEnv("DATABASE_URL", ""),
 	}
 }
 

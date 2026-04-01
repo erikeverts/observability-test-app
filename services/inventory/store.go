@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,14 +23,14 @@ type LedgerEntry struct {
 	Remaining int       `json:"remaining"`
 }
 
-type Store struct {
-	mu        sync.RWMutex
-	stock     map[string]int
-	dataDir   string
+type MemoryStore struct {
+	mu         sync.RWMutex
+	stock      map[string]int
+	dataDir    string
 	ledgerFile *os.File
 }
 
-func NewStore(dataDir string) (*Store, error) {
+func NewMemoryStore(dataDir string) (*MemoryStore, error) {
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, fmt.Errorf("creating data dir: %w", err)
 	}
@@ -40,7 +41,7 @@ func NewStore(dataDir string) (*Store, error) {
 		return nil, fmt.Errorf("opening ledger: %w", err)
 	}
 
-	s := &Store{
+	s := &MemoryStore{
 		stock:      make(map[string]int),
 		dataDir:    dataDir,
 		ledgerFile: f,
@@ -49,7 +50,7 @@ func NewStore(dataDir string) (*Store, error) {
 	return s, nil
 }
 
-func (s *Store) seed() {
+func (s *MemoryStore) seed() {
 	defaults := map[string]int{
 		"prod-1": 50,
 		"prod-2": 120,
@@ -63,24 +64,24 @@ func (s *Store) seed() {
 	}
 }
 
-func (s *Store) GetStock(productID string) (int, bool) {
+func (s *MemoryStore) GetStock(_ context.Context, productID string) (int, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	qty, ok := s.stock[productID]
 	return qty, ok
 }
 
-func (s *Store) ListStock() []StockEntry {
+func (s *MemoryStore) ListStock(_ context.Context) ([]StockEntry, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	entries := make([]StockEntry, 0, len(s.stock))
 	for id, qty := range s.stock {
 		entries = append(entries, StockEntry{ProductID: id, Quantity: qty})
 	}
-	return entries
+	return entries, nil
 }
 
-func (s *Store) Reserve(productID string, quantity int) (int, error) {
+func (s *MemoryStore) Reserve(_ context.Context, productID string, quantity int) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -97,7 +98,7 @@ func (s *Store) Reserve(productID string, quantity int) (int, error) {
 	return s.stock[productID], nil
 }
 
-func (s *Store) DiskUsage() (int64, error) {
+func (s *MemoryStore) DiskUsage() (int64, error) {
 	var total int64
 	entries, err := os.ReadDir(s.dataDir)
 	if err != nil {
@@ -113,7 +114,7 @@ func (s *Store) DiskUsage() (int64, error) {
 	return total, nil
 }
 
-func (s *Store) appendLedger(productID, action string, delta, remaining int) {
+func (s *MemoryStore) appendLedger(productID, action string, delta, remaining int) {
 	entry := LedgerEntry{
 		Timestamp: time.Now(),
 		ProductID: productID,

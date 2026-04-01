@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,7 +9,8 @@ import (
 )
 
 func TestStore_SaveAndGet(t *testing.T) {
-	s := NewStore()
+	s := NewMemoryStore()
+	ctx := context.Background()
 	order := &model.Order{
 		ID:        "order-1",
 		Items:     []model.OrderItem{{ProductID: "prod-1", Quantity: 2}},
@@ -17,8 +19,10 @@ func TestStore_SaveAndGet(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	s.Save(order)
-	got, err := s.Get("order-1")
+	if err := s.Save(ctx, order); err != nil {
+		t.Fatalf("unexpected save error: %v", err)
+	}
+	got, err := s.Get(ctx, "order-1")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -31,19 +35,23 @@ func TestStore_SaveAndGet(t *testing.T) {
 }
 
 func TestStore_GetNotFound(t *testing.T) {
-	s := NewStore()
-	_, err := s.Get("nonexistent")
+	s := NewMemoryStore()
+	_, err := s.Get(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("expected error for nonexistent order")
 	}
 }
 
 func TestStore_List(t *testing.T) {
-	s := NewStore()
-	s.Save(&model.Order{ID: "order-1", Status: model.OrderStatusConfirmed, CreatedAt: time.Now()})
-	s.Save(&model.Order{ID: "order-2", Status: model.OrderStatusPending, CreatedAt: time.Now()})
+	s := NewMemoryStore()
+	ctx := context.Background()
+	s.Save(ctx, &model.Order{ID: "order-1", Status: model.OrderStatusConfirmed, CreatedAt: time.Now()})
+	s.Save(ctx, &model.Order{ID: "order-2", Status: model.OrderStatusPending, CreatedAt: time.Now()})
 
-	orders := s.List()
+	orders, err := s.List(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 	if len(orders) != 2 {
 		t.Errorf("expected 2 orders, got %d", len(orders))
 	}

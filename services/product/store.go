@@ -1,26 +1,27 @@
 package product
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/erikeverts/observability-test-app/internal/model"
 )
 
-type Store struct {
+type MemoryStore struct {
 	mu       sync.RWMutex
 	products map[string]*model.Product
 }
 
-func NewStore() *Store {
-	s := &Store{
+func NewMemoryStore() *MemoryStore {
+	s := &MemoryStore{
 		products: make(map[string]*model.Product),
 	}
 	s.seed()
 	return s
 }
 
-func (s *Store) seed() {
+func (s *MemoryStore) seed() {
 	products := []model.Product{
 		{ID: "prod-1", Name: "Mechanical Keyboard", Description: "Cherry MX Blue switches", Price: 149.99, Stock: 50},
 		{ID: "prod-2", Name: "Wireless Mouse", Description: "Ergonomic design, 2.4GHz", Price: 49.99, Stock: 120},
@@ -33,17 +34,17 @@ func (s *Store) seed() {
 	}
 }
 
-func (s *Store) List() []model.Product {
+func (s *MemoryStore) List(_ context.Context) ([]model.Product, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	result := make([]model.Product, 0, len(s.products))
 	for _, p := range s.products {
 		result = append(result, *p)
 	}
-	return result
+	return result, nil
 }
 
-func (s *Store) Get(id string) (*model.Product, error) {
+func (s *MemoryStore) Get(_ context.Context, id string) (*model.Product, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	p, ok := s.products[id]

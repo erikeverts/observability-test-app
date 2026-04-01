@@ -11,9 +11,11 @@ import (
 
 	"github.com/erikeverts/observability-test-app/internal/chaos"
 	"github.com/erikeverts/observability-test-app/internal/config"
+	"github.com/erikeverts/observability-test-app/internal/database"
 	"github.com/erikeverts/observability-test-app/internal/middleware"
 	"github.com/erikeverts/observability-test-app/internal/telemetry"
 	"github.com/erikeverts/observability-test-app/services/product"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -32,7 +34,22 @@ func main() {
 	logger := telemetry.NewLogger(tel.LoggerProvider, cfg.ServiceName)
 	slog.SetDefault(logger)
 
-	svc := product.NewService()
+	var pool *pgxpool.Pool
+	if cfg.DatabaseURL != "" {
+		var err error
+		pool, err = database.NewPool(ctx, cfg.DatabaseURL)
+		if err != nil {
+			slog.Error("failed to connect to database", "error", err)
+			os.Exit(1)
+		}
+		defer pool.Close()
+		if err := database.RunMigrations(ctx, pool); err != nil {
+			slog.Error("failed to run migrations", "error", err)
+			os.Exit(1)
+		}
+	}
+
+	svc := product.NewService(pool)
 
 	c := chaos.New(cfg)
 	c.LoadSimulator.Start(ctx)
@@ -44,6 +61,14 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
 	})
 	mux.HandleFunc("GET /ready", func(w http.ResponseWriter, r *http.Request) {
+		if pool != nil {
+			if err := pool.Ping(r.Context()); err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				json.NewEncoder(w).Encode(map[string]string{"status": "not ready", "error": "database unavailable"})
+				return
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
 	})
