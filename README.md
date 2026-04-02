@@ -18,7 +18,7 @@ Chaos Dashboard (:8083) -> controls chaos on all services via /admin/chaos API
 - **Inventory Service** - Tracks stock levels per product with an append-only ledger on disk (StatefulSet with PVC)
 - **Chaos Dashboard** - Web UI for controlling chaos/fault injection across all services at runtime
 
-All services export traces, metrics, and logs via OTLP (gRPC or HTTP). Supports Grafana Cloud native OTLP export.
+All services export traces, metrics, and logs via OTLP (gRPC or HTTP), with optional continuous profiling via Pyroscope. Supports Grafana Cloud native export.
 
 ## Quick Start
 
@@ -116,6 +116,15 @@ All configuration is via environment variables:
 | `CHAOS_DISK_FILL_PATH` | `/data` | Directory to write fill data to |
 | `CHAOS_DISK_FILL_RATE_MB` | `1` | MB per second to write |
 
+### Profiling Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `PROFILING_ENABLED` | `false` | Enable continuous profiling via Pyroscope |
+| `PYROSCOPE_ENDPOINT` | `http://localhost:4040` | Pyroscope server URL |
+| `PYROSCOPE_AUTH_TOKEN` | _(empty)_ | Auth token (`instanceId:apiKey` for Grafana Cloud) |
+| `PYROSCOPE_TENANT_ID` | _(empty)_ | Multi-tenant `X-Scope-OrgID` header |
+
 ## Chaos Dashboard
 
 The chaos dashboard provides a web UI for controlling chaos/fault injection across all services at runtime. No restart required — changes take effect immediately.
@@ -161,6 +170,7 @@ curl -X PUT http://localhost:8081/admin/chaos \
 - **Traces**: Full distributed tracing across all 4 services with W3C TraceContext propagation. Custom spans on business logic operations.
 - **Metrics**: Custom counters for orders created, product views, and chaos injection events. Plus automatic HTTP metrics from `otelhttp`.
 - **Logs**: Structured JSON via `log/slog` with `otelslog` bridge. All logs include `trace_id` and `span_id` for correlation.
+- **Profiles**: Continuous profiling via Grafana Pyroscope (CPU, heap, goroutine, mutex, block). Span profiling links profiles to individual traces.
 
 ## Kubernetes Deployment
 
@@ -191,10 +201,19 @@ helm install demo deploy/helm/observability-test-app \
   --set otel.insecure=false \
   --set otel.tls.secretName=otel-mtls
 
-# Deploy with Grafana Cloud
+# Deploy with profiling (Pyroscope)
+helm install demo deploy/helm/observability-test-app \
+  --set otel.endpoint=otel-collector:4317 \
+  --set profiling.enabled=true \
+  --set profiling.pyroscopeEndpoint=http://pyroscope:4040
+
+# Deploy with Grafana Cloud (including profiles)
 helm install demo deploy/helm/observability-test-app \
   --set grafana.endpoint=otlp-gateway-prod-us-central-0.grafana.net \
-  --set grafana.apiToken=<base64-encoded-instance:token>
+  --set grafana.apiToken=<base64-encoded-instance:token> \
+  --set profiling.enabled=true \
+  --set profiling.pyroscopeEndpoint=https://profiles-prod-us-central-0.grafana.net \
+  --set profiling.authToken=<instanceId:apiToken>
 ```
 
 ## Demo Scripts

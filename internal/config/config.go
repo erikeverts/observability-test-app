@@ -48,6 +48,11 @@ type Config struct {
 	InventoryDataDir    string
 
 	DatabaseURL string
+
+	ProfilingEnabled   bool
+	PyroscopeEndpoint  string
+	PyroscopeAuthToken string
+	PyroscopeTenantID  string
 }
 
 func Load() *Config {
@@ -91,6 +96,11 @@ func Load() *Config {
 		InventoryDataDir:    getEnv("INVENTORY_DATA_DIR", "/data"),
 
 		DatabaseURL: getEnv("DATABASE_URL", ""),
+
+		ProfilingEnabled:   getBoolEnv("PROFILING_ENABLED", false),
+		PyroscopeEndpoint:  getEnv("PYROSCOPE_ENDPOINT", "http://localhost:4040"),
+		PyroscopeAuthToken: getEnv("PYROSCOPE_AUTH_TOKEN", ""),
+		PyroscopeTenantID:  getEnv("PYROSCOPE_TENANT_ID", ""),
 	}
 }
 

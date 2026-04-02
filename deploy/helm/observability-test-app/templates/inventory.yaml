@@ -51,6 +51,7 @@ spec:
               value: {{ .Values.chaos.diskFill.rateMB | quote }}
             {{- include "app.otelEnv" . | nindent 12 }}
             {{- include "app.chaosEnv" . | nindent 12 }}
+            {{- include "app.profilingEnv" . | nindent 12 }}
             {{- include "app.databaseEnv" . | nindent 12 }}
           volumeMounts:
             - name: data

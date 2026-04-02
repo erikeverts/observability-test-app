@@ -30,6 +30,13 @@ func main() {
 	}
 	defer cleanup()
 
+	profilingCleanup, err := telemetry.InitProfiling(cfg)
+	if err != nil {
+		slog.Error("failed to init profiling", "error", err)
+		os.Exit(1)
+	}
+	defer profilingCleanup()
+
 	logger := telemetry.NewLogger(tel.LoggerProvider, cfg.ServiceName)
 	slog.SetDefault(logger)
 

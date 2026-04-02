@@ -35,6 +35,23 @@ securityContext:
   value: {{ .Values.chaos.logVolume.pattern | quote }}
 {{- end -}}
 
+{{- define "app.profilingEnv" -}}
+- name: PROFILING_ENABLED
+  value: {{ .Values.profiling.enabled | quote }}
+{{- if .Values.profiling.enabled }}
+- name: PYROSCOPE_ENDPOINT
+  value: {{ .Values.profiling.pyroscopeEndpoint | quote }}
+{{- if .Values.profiling.authToken }}
+- name: PYROSCOPE_AUTH_TOKEN
+  value: {{ .Values.profiling.authToken | quote }}
+{{- end }}
+{{- if .Values.profiling.tenantID }}
+- name: PYROSCOPE_TENANT_ID
+  value: {{ .Values.profiling.tenantID | quote }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
 {{- define "app.otelEnv" -}}
 - name: OTEL_EXPORTER_OTLP_ENDPOINT
   value: {{ .Values.otel.endpoint | quote }}

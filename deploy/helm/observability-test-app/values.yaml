@@ -20,6 +20,12 @@ grafana:
   endpoint: ""
   apiToken: ""
 
+profiling:
+  enabled: false
+  pyroscopeEndpoint: "http://pyroscope:4040"
+  authToken: ""
+  tenantID: ""
+
 chaos:
   errorRoutes: ""
   latencyRoutes: ""
