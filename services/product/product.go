@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type Service struct {
@@ -12,14 +13,14 @@ type Service struct {
 	Mux     *http.ServeMux
 }
 
-func NewService(pool *pgxpool.Pool) *Service {
+func NewService(pool *pgxpool.Pool, viewsCounter metric.Int64Counter) *Service {
 	var store ProductStore
 	if pool != nil {
 		store = NewPGStore(pool)
 	} else {
 		store = NewMemoryStore()
 	}
-	handler := NewHandler(store)
+	handler := NewHandler(store, viewsCounter)
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, handler)
 

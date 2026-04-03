@@ -7,16 +7,18 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
 type LatencyInjector struct {
-	mu     sync.RWMutex
-	routes map[string]time.Duration
+	mu      sync.RWMutex
+	routes  map[string]time.Duration
+	counter metric.Int64Counter
 }
 
-func NewLatencyInjector(routes map[string]time.Duration) *LatencyInjector {
-	return &LatencyInjector{routes: routes}
+func NewLatencyInjector(routes map[string]time.Duration, counter metric.Int64Counter) *LatencyInjector {
+	return &LatencyInjector{routes: routes, counter: counter}
 }
 
 func (l *LatencyInjector) SetRoutes(routes map[string]time.Duration) {
@@ -55,6 +57,7 @@ func (l *LatencyInjector) Middleware(next http.Handler) http.Handler {
 			"path", r.URL.Path,
 			"delay", delay.String(),
 		)
+		l.counter.Add(r.Context(), 1)
 		time.Sleep(delay)
 		next.ServeHTTP(w, r)
 	})
