@@ -5,10 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel/metric/noop"
 )
 
 func TestLatencyInjector_NoRoutes(t *testing.T) {
-	injector := NewLatencyInjector(nil)
+	injector := NewLatencyInjector(nil, noop.Int64Counter{})
 	handler := injector.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -27,7 +29,7 @@ func TestLatencyInjector_NoRoutes(t *testing.T) {
 }
 
 func TestLatencyInjector_AddsDelay(t *testing.T) {
-	injector := NewLatencyInjector(map[string]time.Duration{"/slow": 100 * time.Millisecond})
+	injector := NewLatencyInjector(map[string]time.Duration{"/slow": 100 * time.Millisecond}, noop.Int64Counter{})
 	handler := injector.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))

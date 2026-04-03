@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/erikeverts/observability-test-app/internal/config"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type ChaosConfig struct {
@@ -48,10 +49,10 @@ type Chaos struct {
 	DiskFiller      *DiskFiller
 }
 
-func New(cfg *config.Config) *Chaos {
+func New(cfg *config.Config, chaosErrors, chaosLatency metric.Int64Counter) *Chaos {
 	return &Chaos{
-		ErrorInjector:   NewErrorInjector(cfg.ChaosErrorRoutes),
-		LatencyInjector: NewLatencyInjector(cfg.ChaosLatencyRoutes),
+		ErrorInjector:   NewErrorInjector(cfg.ChaosErrorRoutes, chaosErrors),
+		LatencyInjector: NewLatencyInjector(cfg.ChaosLatencyRoutes, chaosLatency),
 		LoadSimulator:   NewLoadSimulator(cfg.ChaosCPULoadEnabled, cfg.ChaosCPULoadPercent, cfg.ChaosMemLoadEnabled, cfg.ChaosMemLoadMB),
 		LogGenerator:    NewLogGenerator(cfg.ChaosLogVolumeEnabled, cfg.ChaosLogRatePerSec, cfg.ChaosLogPattern),
 		DiskFiller:      NewDiskFiller(cfg.ChaosDiskFillEnabled, cfg.ChaosDiskFillPath, cfg.ChaosDiskFillRateMB),

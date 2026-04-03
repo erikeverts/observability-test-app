@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"go.opentelemetry.io/otel/metric/noop"
 )
 
 func TestErrorInjector_NoRoutes(t *testing.T) {
-	injector := NewErrorInjector(nil)
+	injector := NewErrorInjector(nil, noop.Int64Counter{})
 	handler := injector.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -22,7 +24,7 @@ func TestErrorInjector_NoRoutes(t *testing.T) {
 }
 
 func TestErrorInjector_AlwaysError(t *testing.T) {
-	injector := NewErrorInjector(map[string]float64{"/fail": 1.0})
+	injector := NewErrorInjector(map[string]float64{"/fail": 1.0}, noop.Int64Counter{})
 	handler := injector.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -37,7 +39,7 @@ func TestErrorInjector_AlwaysError(t *testing.T) {
 }
 
 func TestErrorInjector_NeverError(t *testing.T) {
-	injector := NewErrorInjector(map[string]float64{"/safe": 0.0})
+	injector := NewErrorInjector(map[string]float64{"/safe": 0.0}, noop.Int64Counter{})
 	handler := injector.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -53,7 +55,7 @@ func TestErrorInjector_NeverError(t *testing.T) {
 }
 
 func TestErrorInjector_UnmatchedRoute(t *testing.T) {
-	injector := NewErrorInjector(map[string]float64{"/fail": 1.0})
+	injector := NewErrorInjector(map[string]float64{"/fail": 1.0}, noop.Int64Counter{})
 	handler := injector.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))

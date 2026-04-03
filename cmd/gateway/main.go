@@ -43,7 +43,13 @@ func main() {
 	httpClient := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	svc := gateway.NewService(cfg.ProductServiceURL, cfg.OrderServiceURL, cfg.InventoryServiceURL, httpClient)
 
-	c := chaos.New(cfg)
+	metrics, err := telemetry.NewAppMetrics()
+	if err != nil {
+		slog.Error("failed to init app metrics", "error", err)
+		os.Exit(1)
+	}
+
+	c := chaos.New(cfg, metrics.ChaosErrorsTotal, metrics.ChaosLatencyTotal)
 	c.LoadSimulator.Start(ctx)
 	go c.LogGenerator.Start(ctx)
 

@@ -7,16 +7,18 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var tracer = otel.Tracer("product-service")
 
 type Handler struct {
-	store ProductStore
+	store        ProductStore
+	viewsCounter metric.Int64Counter
 }
 
-func NewHandler(store ProductStore) *Handler {
-	return &Handler{store: store}
+func NewHandler(store ProductStore, viewsCounter metric.Int64Counter) *Handler {
+	return &Handler{store: store, viewsCounter: viewsCounter}
 }
 
 func (h *Handler) ListProducts(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +53,7 @@ func (h *Handler) GetProduct(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusNotFound, map[string]string{"error": err.Error()})
 		return
 	}
+	h.viewsCounter.Add(ctx, 1)
 	slog.InfoContext(ctx, "product viewed", "id", id, "name", product.Name)
 	writeJSON(w, http.StatusOK, product)
 }

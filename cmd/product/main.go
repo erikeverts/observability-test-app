@@ -56,9 +56,15 @@ func main() {
 		}
 	}
 
-	svc := product.NewService(pool)
+	metrics, err := telemetry.NewAppMetrics()
+	if err != nil {
+		slog.Error("failed to init app metrics", "error", err)
+		os.Exit(1)
+	}
 
-	c := chaos.New(cfg)
+	svc := product.NewService(pool, metrics.ProductViews)
+
+	c := chaos.New(cfg, metrics.ChaosErrorsTotal, metrics.ChaosLatencyTotal)
 	c.LoadSimulator.Start(ctx)
 	go c.LogGenerator.Start(ctx)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 var tracer = otel.Tracer("order-service")
@@ -19,13 +20,15 @@ type Handler struct {
 	store           OrderStore
 	productClient   *ProductClient
 	inventoryClient *InventoryClient
+	ordersCounter   metric.Int64Counter
 }
 
-func NewHandler(store OrderStore, productClient *ProductClient, inventoryClient *InventoryClient) *Handler {
+func NewHandler(store OrderStore, productClient *ProductClient, inventoryClient *InventoryClient, ordersCounter metric.Int64Counter) *Handler {
 	return &Handler{
 		store:           store,
 		productClient:   productClient,
 		inventoryClient: inventoryClient,
+		ordersCounter:   ordersCounter,
 	}
 }
 
@@ -123,6 +126,7 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
+	h.ordersCounter.Add(ctx, 1)
 	span.SetAttributes(
 		attribute.String("order.id", order.ID),
 		attribute.Float64("order.total", order.Total),

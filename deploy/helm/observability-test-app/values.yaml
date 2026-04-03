@@ -110,3 +110,17 @@ dashboard:
     limits:
       cpu: 100m
       memory: 64Mi
+
+grafanaDashboard:
+  # Enable Crossplane Grafana Dashboard CR (requires Crossplane Grafana provider)
+  enabled: false
+  # Default: official upbound/provider-grafana
+  # For loafoe/provider-gf: "dashboard.grafana.crossplane.io/v1alpha1"
+  apiVersion: "oss.grafana.crossplane.io/v1alpha1"
+  kind: "Dashboard"
+  providerConfigRef: "grafana-provider"
+  folder: ""
+  datasources:
+    prometheus: "prometheus"
+    loki: "loki"
+    tempo: "tempo"
