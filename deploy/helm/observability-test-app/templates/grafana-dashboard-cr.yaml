@@ -399,5 +399,6 @@ spec:
         "version": 2
       }
   providerConfigRef:
+    kind: ProviderConfig
     name: {{ .Values.grafanaDashboard.providerConfigRef }}
 {{- end }}
