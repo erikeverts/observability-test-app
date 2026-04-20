@@ -209,11 +209,11 @@
                     rate_per_sec: parseInt(card.querySelector('#log-rate-' + name).value) || 0,
                     pattern: card.querySelector('#log-pattern-' + name).value
                 },
-                disk_fill: {
+                disk_fill: name === 'inventory' ? {
                     enabled: card.querySelector('#disk-enabled-' + name).checked,
                     path: card.querySelector('#disk-path-' + name).value || '/data',
                     rate_mb: parseInt(card.querySelector('#disk-rate-' + name).value) || 1
-                }
+                } : { enabled: false, path: '/data', rate_mb: 1 }
             };
         }
 
@@ -304,7 +304,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="section">
+                ${name === 'inventory' ? `<div class="section">
                     <h3>Disk Fill</h3>
                     <div class="toggle-row">
                         <label>Enabled</label>
@@ -321,7 +321,10 @@
                         <label>MB/sec</label>
                         <input type="number" id="disk-rate-${name}" min="1" value="${c.disk_fill?.rate_mb || 1}">
                     </div>
-                </div>
+                    <div class="field-row" style="margin-top: 12px;">
+                        <button class="btn btn-secondary" onclick="clearDisk('${name}')">Clear Disk</button>
+                    </div>
+                </div>` : ''}
                 <div class="actions">
                     <button class="btn btn-primary" onclick="saveConfig('${name}')">Apply</button>
                     <button class="btn btn-secondary" onclick="fetchConfig('${name}').then(() => renderService('${name}'))">Refresh</button>
@@ -355,10 +358,26 @@
             list.insertAdjacentHTML('beforeend', latencyRouteRow('', ''));
         }
 
+        async function clearDisk(name) {
+            try {
+                const resp = await fetch(`/api/services/${name}/chaos/clear-disk`, { method: 'POST' });
+                if (!resp.ok) {
+                    const body = await resp.json();
+                    throw new Error(body.error || `HTTP ${resp.status}`);
+                }
+                showToast(`${name}: disk data cleared`, 'success');
+            } catch (e) {
+                showToast(`${name}: ${e.message}`, 'error');
+            }
+        }
+
         async function applyPreset(presetName) {
-            const preset = PRESETS[presetName]();
-            const promises = services.map(svc =>
-                fetch(`/api/services/${svc.name}/chaos`, {
+            const promises = services.map(svc => {
+                const preset = PRESETS[presetName]();
+                if (svc.name !== 'inventory') {
+                    preset.disk_fill = { enabled: false, path: '/data', rate_mb: 1 };
+                }
+                return fetch(`/api/services/${svc.name}/chaos`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(preset)
@@ -367,8 +386,8 @@
                         configs[svc.name] = await resp.json();
                         renderService(svc.name);
                     }
-                }).catch(() => {})
-            );
+                }).catch(() => {});
+            });
             await Promise.all(promises);
             showToast(`Preset "${presetName}" applied to all services`, 'success');
         }

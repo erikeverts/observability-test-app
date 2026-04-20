@@ -54,6 +54,17 @@ func (d *DiskFiller) GetConfig() (enabled bool, path string, rateMB int) {
 	return d.enabled, d.path, d.rateMB
 }
 
+func (d *DiskFiller) Clear() error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.path == "" {
+		return nil
+	}
+	fillDir := filepath.Join(d.path, "chaos-fill")
+	slog.Info("chaos: clearing disk fill data", "path", fillDir)
+	return os.RemoveAll(fillDir)
+}
+
 func (d *DiskFiller) startLocked() {
 	if d.parentCtx == nil || !d.enabled || d.rateMB <= 0 || d.path == "" {
 		return
