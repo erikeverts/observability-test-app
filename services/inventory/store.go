@@ -98,6 +98,20 @@ func (s *MemoryStore) Reserve(_ context.Context, productID string, quantity int)
 	return s.stock[productID], nil
 }
 
+func (s *MemoryStore) Restock(_ context.Context, productID string, quantity int) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	current, ok := s.stock[productID]
+	if !ok {
+		return 0, fmt.Errorf("product %s not found in inventory", productID)
+	}
+
+	s.stock[productID] = current + quantity
+	s.appendLedger(productID, "restock", quantity, s.stock[productID])
+	return s.stock[productID], nil
+}
+
 func (s *MemoryStore) DiskUsage() (int64, error) {
 	var total int64
 	entries, err := os.ReadDir(s.dataDir)

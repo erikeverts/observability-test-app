@@ -83,6 +83,43 @@ func (h *Handler) ReserveStock(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *Handler) Restock(w http.ResponseWriter, r *http.Request) {
+	ctx, span := tracer.Start(r.Context(), "Restock")
+	defer span.End()
+
+	var req struct {
+		ProductID string `json:"product_id"`
+		Quantity  int    `json:"quantity"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	span.SetAttributes(
+		attribute.String("product.id", req.ProductID),
+		attribute.Int("restock.quantity", req.Quantity),
+	)
+
+	if req.Quantity <= 0 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "quantity must be positive"})
+		return
+	}
+
+	remaining, err := h.store.Restock(ctx, req.ProductID, req.Quantity)
+	if err != nil {
+		slog.WarnContext(ctx, "restock failed", "product_id", req.ProductID, "quantity", req.Quantity, "error", err)
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		return
+	}
+
+	slog.InfoContext(ctx, "stock restocked", "product_id", req.ProductID, "added", req.Quantity, "remaining", remaining)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"product_id": req.ProductID,
+		"added":      req.Quantity,
+		"remaining":  remaining,
+	})
+}
+
 func (h *Handler) DiskUsage(w http.ResponseWriter, r *http.Request) {
 	bytes, err := h.store.DiskUsage()
 	if err != nil {
