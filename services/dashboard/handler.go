@@ -80,6 +80,32 @@ func (h *Handler) SetServiceChaos(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 }
 
+func (h *Handler) ClearServiceDisk(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	svc := h.findService(name)
+	if svc == nil {
+		http.Error(w, `{"error":"service not found"}`, http.StatusNotFound)
+		return
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, svc.URL+"/admin/chaos/clear-disk", nil)
+	if err != nil {
+		http.Error(w, `{"error":"failed to create request"}`, http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := h.httpClient.Do(req)
+	if err != nil {
+		http.Error(w, `{"error":"service unreachable: `+err.Error()+`"}`, http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
+}
+
 func (h *Handler) findService(name string) *ServiceInfo {
 	for i := range h.services {
 		if h.services[i].Name == name {

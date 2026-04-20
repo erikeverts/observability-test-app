@@ -92,6 +92,7 @@ func main() {
 	})
 	mux.HandleFunc("GET /admin/chaos", c.HandleGetConfig)
 	mux.HandleFunc("PUT /admin/chaos", c.HandleSetConfig)
+	mux.HandleFunc("POST /admin/chaos/clear-disk", c.HandleClearDisk)
 	mux.Handle("/", svc.Mux)
 
 	handler := c.Middleware(middleware.Wrap(mux, cfg.ServiceName))
