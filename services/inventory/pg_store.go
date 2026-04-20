@@ -101,6 +101,38 @@ func (s *PGStore) Reserve(ctx context.Context, productID string, quantity int) (
 	return remaining, nil
 }
 
+func (s *PGStore) Restock(ctx context.Context, productID string, quantity int) (int, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var current int
+	err = tx.QueryRow(ctx,
+		`SELECT quantity FROM inventory WHERE product_id = $1 FOR UPDATE`, productID).Scan(&current)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return 0, fmt.Errorf("product %s not found in inventory", productID)
+		}
+		return 0, fmt.Errorf("querying stock: %w", err)
+	}
+
+	remaining := current + quantity
+	_, err = tx.Exec(ctx,
+		`UPDATE inventory SET quantity = $1 WHERE product_id = $2`, remaining, productID)
+	if err != nil {
+		return 0, fmt.Errorf("updating stock: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("committing restock: %w", err)
+	}
+
+	s.appendLedger(productID, "restock", quantity, remaining)
+	return remaining, nil
+}
+
 func (s *PGStore) DiskUsage() (int64, error) {
 	var total int64
 	entries, err := os.ReadDir(s.dataDir)
