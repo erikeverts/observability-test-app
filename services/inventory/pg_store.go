@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -159,5 +160,7 @@ func (s *PGStore) appendLedger(productID, action string, delta, remaining int) {
 	}
 	data, _ := json.Marshal(entry)
 	data = append(data, '\n')
-	s.ledgerFile.Write(data)
+	if _, err := s.ledgerFile.Write(data); err != nil {
+		slog.Error("inventory: failed to write ledger entry", "error", err, "product_id", productID, "action", action)
+	}
 }
